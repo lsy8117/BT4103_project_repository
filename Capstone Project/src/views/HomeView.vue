@@ -16,11 +16,8 @@
             <button @click="handleFeedback(index, 'like')">
               <font-awesome-icon :icon="['fas', 'thumbs-up']" />
             </button>
-            <button @click="handleFeedback(index, 'dislike')">
-              <font-awesome-icon :icon="['fas', 'thumbs-down']" />
-            </button>
-            <span v-if="entry.feedback" :class="entry.feedback === 'like' ? 'liked' : 'disliked'">
-              {{ entry.feedback === 'like' ? 'You liked this response' : 'You disliked this response' }}
+            <span v-if="entry.feedback === 'like'" class="liked">
+              You liked this response
             </span>
           </div>
         </div>
