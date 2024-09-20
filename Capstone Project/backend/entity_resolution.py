@@ -2,6 +2,8 @@ from transformers import AutoModelForTokenClassification, AutoTokenizer, pipelin
 from fuzzywuzzy import process, fuzz
 from collections import defaultdict
 import re
+from transformers import logging # suppress warnings
+logging.set_verbosity_error()  # suppress warnings
 
 # Load the tokenizer and model from the same family
 tokenizer = AutoTokenizer.from_pretrained("dslim/bert-large-NER")
@@ -90,18 +92,26 @@ def replace_names(text, linked_names):
 
     return text
 
+def entityResolution(text):
+    names = extract_names(text)
+    linked_names = link_names(names)
+    new_text = replace_names(text, linked_names)
+    return new_text
+
 
 text1 = "Changyang, Yongsheng, and Joe are planning a trip. Changyang Yu will drive the car, Joe Chan Farn Haur will handle the route, and See Yongsheng will support any needs of the driver."
 
-text2 = "David Johnson and Michael D are planning a trip to Italy this summer. David has expressed interest in visiting historical sites, while Michael is looking forward to sampling the local cuisine. Additionally, David J mentioned he would love to explore the Italian countryside on a bike. Both are eager to make the most out of their travel experience, sharing updates and photos with friends."
+# text2 = "David Johnson and Michael D are planning a trip to Italy this summer. David has expressed interest in visiting historical sites, while Michael is looking forward to sampling the local cuisine. Additionally, David J mentioned he would love to explore the Italian countryside on a bike. Both are eager to make the most out of their travel experience, sharing updates and photos with friends."
 
-names = extract_names(text1)
-linked_names = link_names(names)
-new_text = replace_names(text1, linked_names)
+# names = extract_names(text1)
+# linked_names = link_names(names)
+# new_text = replace_names(text1, linked_names)
 
-print("Linked Names: ", linked_names)
-print("Extracted Names: ", names)
-print("New Text : ", new_text)
+# print("Linked Names: ", linked_names)
+# print("Extracted Names: ", names)
+# print("New Text : ", new_text)
+
+# print(entityResolution(text1))
 
 
 
