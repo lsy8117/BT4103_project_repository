@@ -1,5 +1,5 @@
 from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
-from fuzzywuzzy import process, fuzz
+from fuzzywuzzy import fuzz
 from collections import defaultdict
 import re
 from transformers import logging # suppress warnings
@@ -12,15 +12,18 @@ model = AutoModelForTokenClassification.from_pretrained("dslim/bert-large-NER")
 # Create NER pipeline
 nlp = pipeline("ner", model=model, tokenizer=tokenizer)
 
-def recombine_tokens(ner_results):
-    combined_results = []
+def enhancedEntityResolutionPipeline(text):
+    # Step 1: Extract and recombine names
+    ner_results = nlp(text)
+    
+    combined_names = []
     current_entity = ""
     for token in ner_results:
         # Remove '##' and decide whether to add a space
         part = token['word'].replace('##', '')
         if token['entity'] == 'B-PER':
             if current_entity:  # If there's an ongoing entity, save it
-                combined_results.append(current_entity)
+                combined_names.append(current_entity)
             current_entity = part  # Start a new entity
         elif token['entity'] == 'I-PER' and current_entity:
             if part == '.':
@@ -31,25 +34,16 @@ def recombine_tokens(ner_results):
                 current_entity += ' ' + part  # Add with space if truly a separate part
 
     if current_entity:  # Append the last entity if any
-        combined_results.append(current_entity)
-    
-    return combined_results
-
-def extract_names(text):
-    ner_results = nlp(text)
-    # print(ner_results)
-    names = recombine_tokens(ner_results)
-    return names
-
-
-def link_names(names):
+        combined_names.append(current_entity)
+        
+    # Step 2: Linking similar names
     # Dictionary to hold potential links and their scores
     links = defaultdict(dict)
 
     # Find matches for each name excluding itself, only once per pair
-    for i, name in enumerate(names):
+    for i, name in enumerate(combined_names):
         # Loops over subsequent names to avoid comparing a name with itself and to prevent comparing pairs of names more than once.
-        for other in names[i+1:]:
+        for other in combined_names[i+1:]:
             score = fuzz.WRatio(name, other)
             if score >= 85:
                 links[name][other] = score
@@ -66,12 +60,9 @@ def link_names(names):
         for n in all_names:
             canonical_names[n] = canonical
             
-    return canonical_names
-
-
-def replace_names(text, linked_names):
+    # Step 3: Replace similar names with their canonical name
     # Sort the names by length in descending order to ensure that longer names (which might contain shorter names within them) are replaced first, preventing partial replacements of substrings in longer names
-    sorted_names = sorted(linked_names.items(), key=lambda x: len(x[0]), reverse=True)
+    sorted_names = sorted(canonical_names.items(), key=lambda x: len(x[0]), reverse=True)
     
     # List to collect all replacements
     replacements = []
@@ -92,12 +83,6 @@ def replace_names(text, linked_names):
 
     return text
 
-def entityResolution(text):
-    names = extract_names(text)
-    linked_names = link_names(names)
-    new_text = replace_names(text, linked_names)
-    return new_text
-
 
 text1 = "Changyang, Yongsheng, and Joe are planning a trip. Changyang Yu will drive the car, Joe Chan Farn Haur will handle the route, and See Yongsheng will support any needs of the driver."
 
@@ -111,7 +96,7 @@ text1 = "Changyang, Yongsheng, and Joe are planning a trip. Changyang Yu will dr
 # print("Extracted Names: ", names)
 # print("New Text : ", new_text)
 
-# print(entityResolution(text1))
+print(enhancedEntityResolutionPipeline(text1))
 
 
 
