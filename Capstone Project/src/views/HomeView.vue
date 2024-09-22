@@ -1,13 +1,21 @@
 <template>
   <div class="main-view">
     <!-- Display the chat history at the top -->
-    <div v-if="chatHistory.length" class="chat-history" ref="chatHistoryContainer">
-      <div v-for="(entry, index) in chatHistory" :key="index" class="response-entry">
+    <div
+      v-if="chatHistory.length"
+      class="chat-history"
+      ref="chatHistoryContainer"
+    >
+      <div
+        v-for="(entry, index) in chatHistory"
+        :key="index"
+        class="response-entry"
+      >
         <!-- User Query (Right) -->
         <div class="user-query">
           <p>{{ entry.query }}</p>
         </div>
-        
+
         <!-- Response (Left) -->
         <div class="response">
           <p>{{ entry.response }}</p>
@@ -26,33 +34,57 @@
 
     <!-- Pre-built Prompts Section -->
     <div class="prebuilt-prompts">
-      <button @click="handlePrebuiltPrompt('Generate my quarterly earnings in FY24')">
+      <button
+        @click="handlePrebuiltPrompt('Generate my quarterly earnings in FY24')"
+      >
         Generate my quarterly earnings in FY24
       </button>
-      <button @click="handlePrebuiltPrompt('Provide a breakdown of operating expenses for the latest quarter')">
+      <button
+        @click="
+          handlePrebuiltPrompt(
+            'Provide a breakdown of operating expenses for the latest quarter'
+          )
+        "
+      >
         Provide a breakdown of operating expenses for the latest quarter
       </button>
-      <button @click="handlePrebuiltPrompt('List the top-performing revenue streams in FY24')">
+      <button
+        @click="
+          handlePrebuiltPrompt(
+            'List the top-performing revenue streams in FY24'
+          )
+        "
+      >
         List the top-performing revenue streams in FY24
       </button>
-      <button @click="handlePrebuiltPrompt('Show a breakdown of administrative expenses for FY24')">
+      <button
+        @click="
+          handlePrebuiltPrompt(
+            'Show a breakdown of administrative expenses for FY24'
+          )
+        "
+      >
         Show a breakdown of administrative expenses for FY24
       </button>
     </div>
 
     <!-- Form to take user input -->
     <form @submit.prevent="handleSubmit" class="textarea-container">
-      <textarea v-model="userPrompt" id="prompt" placeholder="Enter your query here"></textarea>
+      <textarea
+        v-model="userPrompt"
+        id="prompt"
+        placeholder="Enter your query here"
+      ></textarea>
       <button type="submit" class="submit-button">Submit</button>
     </form>
-
   </div>
 </template>
 
 <script>
-import { library } from '@fortawesome/fontawesome-svg-core';
-import { faThumbsUp, faThumbsDown } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
+import { library } from "@fortawesome/fontawesome-svg-core";
+import { faThumbsUp, faThumbsDown } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import axios from "axios";
 
 library.add(faThumbsUp, faThumbsDown);
 
@@ -62,7 +94,7 @@ export default {
   },
   data() {
     return {
-      userPrompt: '', // to store user input or pre-built prompt
+      userPrompt: "", // to store user input or pre-built prompt
       chatHistory: [], // to store chat history with queries and responses
     };
   },
@@ -70,31 +102,43 @@ export default {
     // When a pre-built prompt is clicked, set it and automatically submit
     handlePrebuiltPrompt(prompt) {
       this.userPrompt = prompt;
-      this.handleSubmit();    // Automatically submit the pre-built query
+      this.handleSubmit(); // Automatically submit the pre-built query
     },
-    handleSubmit() {
-      if (this.userPrompt.trim() === '') {
-        alert('Please enter a valid query.');
+    async handleSubmit() {
+      if (this.userPrompt.trim() === "") {
+        alert("Please enter a valid query.");
         return;
       }
 
-      // Simulate a response (replace this with actual API call later)
-      const simulatedResponse = `This is a placeholder response for: "${this.userPrompt}"`;
+      try {
+        // Sending the text to the Flask backend
+        const anonymizerResponse = await axios.post(
+          "http://127.0.0.1:5000/anonymize",
+          {
+            text: this.userPrompt,
+          }
+        );
 
-      // Add the query and response to the chat history
-      this.chatHistory.push({
-        query: this.userPrompt,
-        response: simulatedResponse,
-        feedback: null, // Feedback will be either 'like' or 'dislike'
-      });
+        // Extract the anonymized text from the response
+        const anonymizedText = anonymizerResponse.data.anonymized_text; // Ensure this key matches your Flask response
 
-      // Clear the userPrompt for the next query
-      this.userPrompt = '';
+        // Add the query and the anonymized response to the chat history
+        this.chatHistory.push({
+          query: this.userPrompt,
+          response: anonymizedText, // Display the anonymized text
+          feedback: null, // Feedback will be either 'like' or 'dislike'
+        });
 
-      // Ensure the chat scrolls to the bottom
-      this.$nextTick(() => {
-        this.scrollToBottom();
-      });
+        // Clear the userPrompt for the next query
+        this.userPrompt = "";
+
+        // Ensure the chat scrolls to the bottom
+        this.$nextTick(() => {
+          this.scrollToBottom();
+        });
+      } catch (error) {
+        console.error("There was an error anonymizing the data:", error);
+      }
     },
     handleFeedback(index, feedback) {
       this.chatHistory[index].feedback = feedback;
@@ -131,16 +175,16 @@ export default {
 
 .response-entry {
   display: flex;
-  flex-direction: column
+  flex-direction: column;
 }
 
 /* Style for the user's query (aligned right) */
 .user-query {
   align-self: flex-end; /* Align to the right */
-  background-color:rgb(246, 229, 209);
+  background-color: rgb(246, 229, 209);
   padding: 0px 20px;
   margin: 10px 0px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
   border-radius: 10px;
   max-width: 60%; /* Set a max width for the query bubble */
   display: flex; /* Allow bubble to wrap the text naturally */
@@ -156,7 +200,7 @@ export default {
   padding: 0px 20px;
   margin: 10px 0px;
   border-radius: 10px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
   max-width: 60%; /* Set a max width for the response bubble */
   display: inline-block; /* Allow bubble to wrap the text naturally */
   word-wrap: break-word; /* Handle long words */
@@ -164,11 +208,12 @@ export default {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
-.liked, .disliked {
-  font-weight:lighter;
+.liked,
+.disliked {
+  font-weight: lighter;
   font-style: italic;
   font-size: 0.7em;
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
   margin-bottom: 5px;
   display: block; /* This ensures it displays on its own line */
 }
@@ -187,8 +232,8 @@ export default {
   padding: 10px 20px;
   margin: 2px;
   font-size: 1em;
-  font-family: 'Montserrat', sans-serif;
-  background-color:rgb(205, 170, 128);
+  font-family: "Montserrat", sans-serif;
+  background-color: rgb(205, 170, 128);
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -221,7 +266,7 @@ textarea {
   border-radius: 10px;
   border: none;
   font-size: 1em;
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
   height: 100px;
   box-sizing: border-box;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
@@ -232,7 +277,7 @@ textarea {
   margin-right: 10px;
   transform: translateY(-130%);
   font-size: 0.9em;
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
   background-color: bisque;
   border: none;
   border-radius: 5px;
@@ -242,7 +287,7 @@ textarea {
 }
 
 .submit-button:hover {
-  background-color:rgb(237, 179, 107);
+  background-color: rgb(237, 179, 107);
 }
 
 .feedback-buttons {
@@ -254,7 +299,7 @@ textarea {
   margin-bottom: 10px;
   padding: 5px 10px;
   font-size: 0.9em;
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
   background-color: white;
   border-width: 0.2px;
   border-radius: 4px;
