@@ -42,10 +42,24 @@
 
     <!-- Form to take user input -->
     <form @submit.prevent="handleSubmit" class="textarea-container">
-      <textarea v-model="userPrompt" id="prompt" placeholder="Enter your query here"></textarea>
-      <button type="submit" class="submit-button">Submit</button>
+      <div class="custom-textarea">
+        <textarea v-model="userPrompt" id="prompt" placeholder="Enter your query here" class="input-area"></textarea>
+        <div class="input-container">
+          <!-- Display chosen files and an "X" to remove them -->
+          <div class="file-input-container">
+            <div v-if="uploadedFiles.length" class="file-display">
+              <div v-for="(file, index) in uploadedFiles" :key="index" class="file-item">
+                <span>{{ file.name }}</span>
+                <button type="button" @click="removeFile(index)" class="remove-file-button">X</button>
+              </div>
+            </div>
+            <!-- File upload for PDF attachments -->
+            <input type="file" @change="handleFileUpload" accept="application/pdf" class="file-input" />
+          </div>
+          <button type="submit" class="submit-button">Submit</button>
+        </div>
+      </div>
     </form>
-
   </div>
 </template>
 
@@ -64,19 +78,27 @@ export default {
     return {
       userPrompt: '', // to store user input or pre-built prompt
       chatHistory: [], // to store chat history with queries and responses
+      uploadedFiles: [], // to store the list of uploaded files
     };
   },
   methods: {
-    // When a pre-built prompt is clicked, set it and automatically submit
     handlePrebuiltPrompt(prompt) {
       this.userPrompt = prompt;
-      this.handleSubmit();    // Automatically submit the pre-built query
+      this.handleSubmit(); // Automatically submit the pre-built query
     },
     handleSubmit() {
       if (this.userPrompt.trim() === '') {
         alert('Please enter a valid query.');
         return;
       }
+
+      // Handle file along with the user query (if any file is uploaded)
+      const formData = new FormData();
+      formData.append('query', this.userPrompt);
+
+      this.uploadedFiles.forEach(file => {
+        formData.append('files[]', file);
+      });
 
       // Simulate a response (replace this with actual API call later)
       const simulatedResponse = `This is a placeholder response for: "${this.userPrompt}"`;
@@ -88,8 +110,9 @@ export default {
         feedback: null, // Feedback will be either 'like' or 'dislike'
       });
 
-      // Clear the userPrompt for the next query
+      // Clear the userPrompt and the uploaded files for the next query
       this.userPrompt = '';
+      this.uploadedFiles = [];
 
       // Ensure the chat scrolls to the bottom
       this.$nextTick(() => {
@@ -103,6 +126,20 @@ export default {
       const container = this.$refs.chatHistoryContainer;
       container.scrollTop = container.scrollHeight;
     },
+    handleFileUpload(event) {
+      const files = event.target.files;
+      for (let i = 0; i < files.length; i++) {
+        if (files[i].type === 'application/pdf') {
+          this.uploadedFiles.push(files[i]);
+        } else {
+          alert('Please upload a valid PDF file.');
+        }
+      }
+      event.target.value = ''; // Reset the file input to allow the same file to be reselected
+    },
+    removeFile(index) {
+      this.uploadedFiles.splice(index, 1);
+    },
   },
 };
 </script>
@@ -111,7 +148,7 @@ export default {
 .main-view {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end; /* Align content to the bottom */
+  justify-content: flex-end;
   height: 100vh;
   width: 95%;
   margin: 0 auto;
@@ -121,132 +158,53 @@ export default {
 .chat-history {
   flex-grow: 1;
   margin-bottom: 20px;
-  max-height: 400px; /* Set a max height for the chat history block */
-  overflow-y: auto; /* Allows scrolling if chat history exceeds max height */
+  max-height: 400px;
+  overflow-y: auto;
   display: flex;
-  flex-direction: column; /* Regular column direction */
+  flex-direction: column;
   justify-content: flex-start;
   padding: 10px;
 }
 
 .response-entry {
   display: flex;
-  flex-direction: column
+  flex-direction: column;
 }
 
-/* Style for the user's query (aligned right) */
 .user-query {
-  align-self: flex-end; /* Align to the right */
-  background-color:rgb(246, 229, 209);
+  align-self: flex-end;
+  background-color: rgb(246, 229, 209);
   padding: 0px 20px;
   margin: 10px 0px;
   font-family: 'Montserrat', sans-serif;
   border-radius: 10px;
-  max-width: 60%; /* Set a max width for the query bubble */
-  display: flex; /* Allow bubble to wrap the text naturally */
-  word-wrap: break-word; /* Handle long words */
+  max-width: 60%;
+  display: flex;
+  word-wrap: break-word;
   text-align: right;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
-/* Style for the response (aligned left) */
 .response {
-  align-self: flex-start; /* Align to the left */
-  background-color: #f1f1f1; /* Light grey background */
+  align-self: flex-start;
+  background-color: #f1f1f1;
   padding: 0px 20px;
   margin: 10px 0px;
   border-radius: 10px;
   font-family: 'Montserrat', sans-serif;
-  max-width: 60%; /* Set a max width for the response bubble */
-  display: inline-block; /* Allow bubble to wrap the text naturally */
-  word-wrap: break-word; /* Handle long words */
+  max-width: 60%;
+  display: inline-block;
+  word-wrap: break-word;
   text-align: left;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
-.liked, .disliked {
-  font-weight:lighter;
-  font-style: italic;
-  font-size: 0.7em;
-  font-family: 'Montserrat', sans-serif;
-  margin-bottom: 5px;
-  display: block; /* This ensures it displays on its own line */
-}
-
-/* Prebuilt Prompts Styling */
-.prebuilt-prompts {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  margin-bottom: 40px;
-  gap: 10px;
-}
-
-.prebuilt-prompts button {
-  flex: 0 1 calc(50% - 10px); /* Ensure two buttons per row with some gap */
-  padding: 10px 20px;
-  margin: 2px;
-  font-size: 1em;
-  font-family: 'Montserrat', sans-serif;
-  background-color:rgb(205, 170, 128);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  height: 3em;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-.prebuilt-prompts button:hover {
-  background-color: rgb(193, 138, 70);
-}
-
-/* Form Styling */
-form {
-  display: flex;
-  flex-direction: column; /* Stack elements vertically */
-  width: 100%;
-  margin: 0 auto; /* Center the form */
-}
-
-.textarea-container {
-  position: relative;
-  display: flex;
-  align-items: flex-end; /* Align the button to the right */
-  width: 100%;
-}
-
-textarea {
-  width: 100%;
-  padding: 20px;
-  border-radius: 10px;
-  border: none;
-  font-size: 1em;
-  font-family: 'Montserrat', sans-serif;
-  height: 100px;
-  box-sizing: border-box;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-.submit-button {
-  padding: 10px 10px; /* Controls the size of the button */
-  margin-right: 10px;
-  transform: translateY(-130%);
-  font-size: 0.9em;
-  font-family: 'Montserrat', sans-serif;
-  background-color: bisque;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  text-align: center; /* Ensures text is centered */
-}
-
-.submit-button:hover {
-  background-color:rgb(237, 179, 107);
-}
-
+/* Feedback buttons */
 .feedback-buttons {
   margin-top: 10px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 }
 
 .feedback-buttons button {
@@ -266,4 +224,123 @@ textarea {
 .feedback-buttons button:hover {
   background-color: rgb(224, 246, 255);
 }
+
+/* Prebuilt Prompts Styling */
+.prebuilt-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-bottom: 0px;
+  gap: 10px;
+}
+
+.prebuilt-prompts button {
+  flex: 0 1 calc(50% - 10px);
+  padding: 10px 20px;
+  margin: 2px;
+  font-size: 1em;
+  font-family: 'Montserrat', sans-serif;
+  background-color: rgb(205, 170, 128);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  height: 3em;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.prebuilt-prompts button:hover {
+  background-color: rgb(193, 138, 70);
+}
+
+/* Form Styling */
+.textarea-container {
+  position: relative;
+  display: flex;
+  width: 100%;
+}
+
+.custom-textarea {
+  width: 100%;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  background-color: #f9f9f9;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+}
+
+.input-area {
+  width: 100%;
+  min-height: 50px;
+  padding: 10px;
+  border: none;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 1em;
+  box-sizing: border-box;
+  margin-bottom: 10px;
+}
+
+.input-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.file-display {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 5px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+}
+
+.file-item span {
+  margin-right: 10px;
+  font-size: small;
+}
+
+.remove-file-button {
+  background: red;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.remove-file-button:hover {
+  background: darkred;
+}
+
+.file-input {
+  margin-bottom: 5px;
+}
+
+.submit-button {
+  padding: 10px;
+  font-size: 0.9em;
+  height:3em;
+  font-family: 'Montserrat', sans-serif;
+  background-color: bisque;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  align-self: flex-end;
+}
+
+.submit-button:hover {
+  background-color: rgb(237, 179, 107);
+}
+
 </style>
