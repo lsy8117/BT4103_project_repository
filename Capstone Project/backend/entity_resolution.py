@@ -84,7 +84,7 @@ def enhancedEntityResolutionPipeline(text):
     return text
 
 
-text1 = "Changyang, Yongsheng, and Joe are planning a trip. Changyang Yu will drive the car, Joe Chan Farn Haur will handle the route, and See Yongsheng will support any needs of the driver."
+# text1 = "Changyang, Yongsheng, and Joe are planning a trip. Changyang Yu will drive the car, Joe Chan Farn Haur will handle the route, and See Yongsheng will support any needs of the driver."
 
 # text2 = "David Johnson and Michael D are planning a trip to Italy this summer. David has expressed interest in visiting historical sites, while Michael is looking forward to sampling the local cuisine. Additionally, David J mentioned he would love to explore the Italian countryside on a bike. Both are eager to make the most out of their travel experience, sharing updates and photos with friends."
 
@@ -96,7 +96,7 @@ text1 = "Changyang, Yongsheng, and Joe are planning a trip. Changyang Yu will dr
 # print("Extracted Names: ", names)
 # print("New Text : ", new_text)
 
-print(enhancedEntityResolutionPipeline(text1))
+# print(enhancedEntityResolutionPipeline(text1))
 
 
 
