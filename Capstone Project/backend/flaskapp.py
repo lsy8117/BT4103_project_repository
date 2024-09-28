@@ -3,8 +3,12 @@ from flask_cors import CORS
 from anonymizer import AnonymizerEngine
 from entity_resolution import enhancedEntityResolutionPipeline
 import re
+import io
+import pymupdf
 
 engine = AnonymizerEngine()
+
+anonymized_file_text = ""
 
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests (important for frontend communication)
@@ -12,16 +16,40 @@ CORS(app)  # Allow cross-origin requests (important for frontend communication)
 
 @app.route('/anonymize', methods=['POST'])
 def anonymize():
-    data = request.json  # Get JSON data from the request
-    text = data.get('text', '')
-    text = re.sub(r'(\d)\s+(\d)', r'\1\2', text)  # remove gaps in numbers
-    text = enhancedEntityResolutionPipeline(text)  # preprocess names
+    query = request.form.get('query')
+    query = re.sub(r'(\d)\s+(\d)', r'\1\2', query)  # remove gaps in numbers
+    query = enhancedEntityResolutionPipeline(query)  # preprocess names
 
-    # Your anonymization logic here
-    anonymized_text = engine.anonymize(text)
+    # Anonymize text here
+    anonymized_query = engine.anonymize(query)
+    print(anonymized_query)
 
     # Return the result as a JSON response
-    return jsonify({'anonymized_text': anonymized_text})
+    return jsonify({'anonymized_query': anonymized_query})
+
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    global anonymized_file_text
+    file = request.files['file'].read()
+
+    with io.BytesIO(file) as pdf_file:
+        pdf_document = pymupdf.open(stream = pdf_file, filetype="pdf")
+        anonymized_file_text = ''
+        for page in pdf_document:
+            text = page.get_text("text")
+            # text = re.sub(r'(\d)\s+(\d)', r'\1\2', text)  # computationally expensive, especially for large files.
+            text = enhancedEntityResolutionPipeline(text)
+            anonymized_file_text += engine.anonymize(text)
+    print(anonymized_file_text)
+    return jsonify({'message': 'File uploaded successfully.'})
+
+
+@app.route('/clear_anonymized_text', methods=['POST'])
+def clear_anonymized_text():
+    global anonymized_file_text
+    anonymized_file_text = ""  # Clear the global variable
+    return jsonify({'message': 'Anonymized file text cleared successfully.'})
 
 
 if __name__ == '__main__':
