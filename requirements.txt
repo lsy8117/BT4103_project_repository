@@ -1,0 +1,10 @@
+flask
+flask_cors
+PyMuPDF
+langchain_experimental
+transformers
+fuzzywuzzy
+torch
+presidio-anonymizer
+presidio-analyzer
+Faker
