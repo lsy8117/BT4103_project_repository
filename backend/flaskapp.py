@@ -14,8 +14,11 @@ app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests (important for frontend communication)
 
 
-@app.route('/anonymize', methods=['POST'])
-def anonymize():
+@app.route('/mainpipeline', methods=['POST'])
+def main_pipeline():
+    
+    #VECTOR DB
+    
     query = request.form.get('query')
     query = re.sub(r'(\d)\s+(\d)', r'\1\2', query)  # remove gaps in numbers
     query = enhancedEntityResolutionPipeline(query)  # preprocess names
@@ -23,9 +26,17 @@ def anonymize():
     # Anonymize text here
     anonymized_query = engine.anonymize(query)
     print(anonymized_query)
+    
+    # GEMINI MODEL HERE
+    gemini_output = ''
+    
+    # Deanonymize text here
+    deanonymized_output = engine.deanonymize(gemini_output)
 
     # Return the result as a JSON response
-    return jsonify({'anonymized_query': anonymized_query})
+    return jsonify({'anonymized_query': anonymized_query,
+                    'gemini_output': gemini_output,
+                    'deanonymized_output': deanonymized_output})
 
 
 @app.route('/upload', methods=['POST'])

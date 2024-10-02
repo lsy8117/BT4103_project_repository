@@ -144,7 +144,7 @@ export default {
       try {
         // Sending the text to the Flask backend
         const anonymizerResponse = await axios.post(
-          "http://127.0.0.1:5000/anonymize",
+          "http://127.0.0.1:5000/mainpipeline",
           formData,
           {
             headers: {
@@ -154,7 +154,7 @@ export default {
         );
 
         // Extract the anonymized text from the response
-        const anonymizedQuery = anonymizerResponse.data.anonymized_query; // Ensure this key matches your Flask response
+        const anonymizedQuery = anonymizerResponse.data.anonymized_query; // Change this according to output desired.
 
         // Add the query and the anonymized response to the chat history
         this.chatHistory.push({

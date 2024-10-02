@@ -6,7 +6,8 @@ from transformers import logging # suppress warnings
 logging.set_verbosity_error()  # suppress warnings
 
 # Load the tokenizer and model from the same family
-tokenizer = AutoTokenizer.from_pretrained("dslim/bert-large-NER")
+tokenizer = AutoTokenizer.from_pretrained(
+    "dslim/bert-large-NER", clean_up_tokenization_spaces=True)
 model = AutoModelForTokenClassification.from_pretrained("dslim/bert-large-NER")
 
 # Create NER pipeline
