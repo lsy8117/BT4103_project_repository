@@ -80,12 +80,16 @@
         <div class="input-container">
           <!-- Display chosen file and an "X" to remove it -->
           <div class="file-input-container">
-            <div v-if="uploadedFile" class="file-display">
+            <div
+              v-for="file in uploadedFiles"
+              :key="file.name"
+              class="file-display"
+            >
               <div class="file-item">
-                <span>{{ uploadedFile.name }}</span>
+                <span>{{ file.name }}</span>
                 <button
                   type="button"
-                  @click="removeFile"
+                  @click="removeFile(file)"
                   class="remove-file-button"
                 >
                   X
@@ -96,6 +100,7 @@
             <input
               type="file"
               @change="handleFileUpload"
+              multiple
               accept="application/pdf"
               class="file-input"
             />
@@ -108,12 +113,12 @@
 </template>
 
 <script>
-import { library } from "@fortawesome/fontawesome-svg-core";
-import { faThumbsUp, faThumbsDown } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import axios from "axios";
+import { library } from '@fortawesome/fontawesome-svg-core'
+import { faThumbsUp, faThumbsDown } from '@fortawesome/free-solid-svg-icons'
+import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
+import axios from 'axios'
 
-library.add(faThumbsUp, faThumbsDown);
+library.add(faThumbsUp, faThumbsDown)
 
 export default {
   components: {
@@ -121,124 +126,133 @@ export default {
   },
   data() {
     return {
-      userPrompt: "", // to store user input or pre-built prompt
+      userPrompt: '', // to store user input or pre-built prompt
       chatHistory: [], // to store chat history with queries and responses
-      uploadedFile: null, // to store the single uploaded file
-    };
+      uploadedFiles: [], // to store the single uploaded file
+    }
   },
   methods: {
     handlePrebuiltPrompt(prompt) {
-      this.userPrompt = prompt;
-      this.handleSubmit(); // Automatically submit the pre-built query
+      this.userPrompt = prompt
+      this.handleSubmit() // Automatically submit the pre-built query
     },
+
     async handleSubmit() {
-      if (this.userPrompt.trim() === "") {
-        alert("Please enter a valid query.");
-        return;
+      if (this.userPrompt.trim() === '') {
+        alert('Please enter a valid query.')
+        return
       }
 
       // Handle file along with the user query (if any file is uploaded)
-      const formData = new FormData();
-      formData.append("query", this.userPrompt); // Sending the query
+      const formData = new FormData()
+      formData.append('query', this.userPrompt) // Sending the query
 
       try {
         // Sending the text to the Flask backend
         const anonymizerResponse = await axios.post(
-          "http://127.0.0.1:5000/mainpipeline",
+          'http://127.0.0.1:5000/mainpipeline',
           formData,
           {
             headers: {
-              "Content-Type": "multipart/form-data",
+              'Content-Type': 'multipart/form-data',
             },
           }
-        );
+        )
 
         // Extract the anonymized text from the response
-        const anonymizedQuery = anonymizerResponse.data.anonymized_query; // Change this according to output desired.
-
+        const anonymizedQuery = anonymizerResponse.data.anonymized_query // Change this according to output desired.
         // Add the query and the anonymized response to the chat history
         this.chatHistory.push({
           query: this.userPrompt,
           response: anonymizedQuery, // Display the anonymized text
           feedback: null, // Feedback will be either 'like' or 'dislike'
-        });
+        })
 
         // Clear the userPrompt and the uploaded file for the next query
-        this.userPrompt = "";
+        this.userPrompt = ''
 
         // Ensure the chat scrolls to the bottom
         this.$nextTick(() => {
-          this.scrollToBottom();
-        });
+          this.scrollToBottom()
+        })
       } catch (error) {
-        console.error("There was an error anonymizing the data:", error);
+        console.error('There was an error anonymizing the data:', error)
       }
     },
+
     handleFeedback(index, feedback) {
-      this.chatHistory[index].feedback = feedback;
+      this.chatHistory[index].feedback = feedback
     },
+
     scrollToBottom() {
-      const container = this.$refs.chatHistoryContainer;
-      container.scrollTop = container.scrollHeight;
+      const container = this.$refs.chatHistoryContainer
+      container.scrollTop = container.scrollHeight
     },
+
     async handleFileUpload(event) {
-      const file = event.target.files[0];
-      if (file) {
-        if (file.type === "application/pdf") {
-          // Prepare the form data
-          const formData = new FormData();
-          formData.append("file", file);
+      const newFiles = Array.from(event.target.files).filter(
+        (f) =>
+          this.uploadedFiles.map((file) => file.name).indexOf(f.name) === -1
+      )
 
-          this.chatHistory.push({
-            query: "Uploading file. Please wait.",
-          });
-
-          try {
-            // Send the file to the Flask backend
-            const uploadResponse = await axios.post(
-              "http://127.0.0.1:5000/upload",
-              formData,
-              {
-                headers: {
-                  "Content-Type": "multipart/form-data",
-                },
-              }
-            );
-
-            // Update the uploadedFile to display it in the UI
-            this.uploadedFile = file;
-
-            // Add the query and the anonymized response to the chat history
+      if (newFiles.length > 0) {
+        newFiles.forEach(async (file) => {
+          if (file.type === 'application/pdf') {
+            // Prepare the form data
+            const formData = new FormData()
+            formData.append('file', file)
             this.chatHistory.push({
-              response: uploadResponse.data.message,
-            });
-          } catch (error) {
-            console.error("Error uploading file:", error);
-            alert("There was an error uploading the file.");
-          }
-        } else {
-          alert("Please upload a valid PDF file.");
-        }
-      }
-      event.target.value = ""; // Reset the file input to allow the same file to be reselected
-    },
-    async removeFile() {
-      this.uploadedFile = null;
+              query: 'Uploading file. Please wait.',
+            })
 
+            try {
+              // Send the file to the Flask backend
+              const uploadResponse = await axios.post(
+                'http://127.0.0.1:5000/upload',
+                formData,
+                {
+                  headers: {
+                    'Content-Type': 'multipart/form-data',
+                  },
+                }
+              )
+              this.uploadedFiles.push(file)
+              this.chatHistory.push({
+                response: uploadResponse.data.message,
+              })
+            } catch (error) {
+              console.error('Error uploading file:', error)
+              alert('There was an error uploading the file.')
+            }
+          } else {
+            alert('Please upload a valid PDF file.')
+          }
+        })
+      }
+    },
+
+    async removeFile(fileToRemove) {
       try {
         // Send request to backend to clear the anonymized text
-        await axios.post("http://127.0.0.1:5000/clear_anonymized_text");
-        console.log("Anonymized text cleared on the backend.");
+        const removeResponse = await axios.post(
+          'http://127.0.0.1:5000/clear_anonymized_text',
+          {
+            fileName: fileToRemove.name,
+          }
+        )
+        console.log('Anonymized text for the file cleared on the backend.')
+        this.uploadedFiles = this.uploadedFiles.filter(
+          (file) => file !== fileToRemove
+        )
+        this.chatHistory.push({
+          response: removeResponse.data.message,
+        })
       } catch (error) {
-        console.error("Error clearing anonymized file text:", error);
+        console.error('Error clearing anonymized file text:', error)
       }
-
-      this.chatHistory.push({
-        query: "File removed.",
-      });
     },
   },
-};
+}
 </script>
 
 <style scoped>
@@ -273,7 +287,7 @@ export default {
   background-color: rgb(246, 229, 209);
   padding: 0px 20px;
   margin: 10px 0px;
-  font-family: "Montserrat", sans-serif;
+  font-family: 'Montserrat', sans-serif;
   border-radius: 10px;
   max-width: 60%;
   display: flex;
@@ -288,7 +302,7 @@ export default {
   padding: 0px 20px;
   margin: 10px 0px;
   border-radius: 10px;
-  font-family: "Montserrat", sans-serif;
+  font-family: 'Montserrat', sans-serif;
   max-width: 60%;
   display: inline-block;
   word-wrap: break-word;
@@ -309,7 +323,7 @@ export default {
   margin-bottom: 10px;
   padding: 5px 10px;
   font-size: 0.9em;
-  font-family: "Montserrat", sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background-color: white;
   border-width: 0.2px;
   border-radius: 4px;
@@ -336,7 +350,7 @@ export default {
   padding: 10px 20px;
   margin: 2px;
   font-size: 1em;
-  font-family: "Montserrat", sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background-color: rgb(205, 170, 128);
   border: none;
   border-radius: 4px;
@@ -374,7 +388,7 @@ export default {
   min-height: 50px;
   padding: 10px;
   border: none;
-  font-family: "Montserrat", sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-size: 1em;
   box-sizing: border-box;
   margin-bottom: 10px;
@@ -433,7 +447,7 @@ export default {
   padding: 10px;
   font-size: 0.9em;
   height: 3em;
-  font-family: "Montserrat", sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background-color: bisque;
   border: none;
   border-radius: 5px;
@@ -455,7 +469,7 @@ export default {
   margin-bottom: 10px;
   padding: 5px 10px;
   font-size: 0.9em;
-  font-family: "Montserrat", sans-serif;
+  font-family: 'Montserrat', sans-serif;
   background-color: white;
   border-width: 0.2px;
   border-radius: 4px;
