@@ -1,5 +1,5 @@
 from transformers import AutoModelForTokenClassification, AutoTokenizer, pipeline
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 from collections import defaultdict
 import re
 from transformers import logging # suppress warnings
@@ -14,9 +14,12 @@ model = AutoModelForTokenClassification.from_pretrained("dslim/bert-large-NER")
 nlp = pipeline("ner", model=model, tokenizer=tokenizer)
 
 def enhancedEntityResolutionPipeline(text):
+    # Check if the text ends with a period, because if the name appears as the last word of the sentence but without a period, the NER won't recognize it as a name.
+    if not text.endswith('.'):
+        text += '.'
+        
     # Step 1: Extract and recombine names
     ner_results = nlp(text)
-    
     combined_names = []
     current_entity = ""
     for token in ner_results:
@@ -33,7 +36,6 @@ def enhancedEntityResolutionPipeline(text):
                 current_entity += part  # Add without space if it is part of the same word
             else:
                 current_entity += ' ' + part  # Add with space if truly a separate part
-
     if current_entity:  # Append the last entity if any
         combined_names.append(current_entity)
         
