@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from anonymizer import AnonymizerEngine
 from entity_resolution import enhancedEntityResolutionPipeline
+from vectordb import Vectordb
 import re
 import io
 import pymupdf
@@ -17,11 +18,22 @@ CORS(app)  # Allow cross-origin requests (important for frontend communication)
 @app.route('/mainpipeline', methods=['POST'])
 def main_pipeline():
     
-    #VECTOR DB
-    
+    # Vectordb
+    vectordb_api_key = "GM0ZIF4yhhRlLEdnAMh9slUJNV2hOU6JLDU7i0QOm1eocLIq-QUIzA"
+    collection_name = "QnA"
+    vectordb = Vectordb(vectordb_api_key)
+    vectordb.set_threshold(0.8)
+    # vectordb.create_collection(collection_name)
+
+    # Query
     query = request.form.get('query')
     query = re.sub(r'(\d)\s+(\d)', r'\1\2', query)  # remove gaps in numbers
     query = enhancedEntityResolutionPipeline(query)  # preprocess names
+
+    # Retrieve from vectordb
+    output, score = vectordb.query(query, collection_name, "answer")
+    print(f"score: {score}")
+    print(output)
 
     # Anonymize text here
     anonymized_query = engine.anonymize(query)
