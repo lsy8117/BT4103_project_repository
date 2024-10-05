@@ -9,7 +9,7 @@ import pymupdf
 
 engine = AnonymizerEngine()
 
-anonymized_file_text = ""
+anonymized_file_text = {}
 
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests (important for frontend communication)
@@ -52,28 +52,37 @@ def main_pipeline():
 
 
 @app.route('/upload', methods=['POST'])
-def upload_file():
-    global anonymized_file_text
-    file = request.files['file'].read()
+def upload_files():
+    files = request.files.getlist('file')
+    for file in files:
+        file_name = file.filename
+        file_content = file.read()
 
-    with io.BytesIO(file) as pdf_file:
-        pdf_document = pymupdf.open(stream = pdf_file, filetype="pdf")
-        anonymized_file_text = ''
-        for page in pdf_document:
-            text = page.get_text("text")
-            # text = re.sub(r'(\d)\s+(\d)', r'\1\2', text)  # computationally expensive, especially for large files.
-            text = enhancedEntityResolutionPipeline(text)
-            anonymized_file_text += engine.anonymize(text)
-    print(anonymized_file_text)
-    return jsonify({'message': 'File uploaded successfully.'})
+        with io.BytesIO(file_content) as pdf_file:
+            pdf_document = pymupdf.open(stream=pdf_file, filetype="pdf")
+            anonymized_text = ''
+            for page in pdf_document:
+                text = page.get_text("text")
+                # text = re.sub(r'(\d)\s+(\d)', r'\1\2', text)  # computationally expensive, especially for large files.
+                text = enhancedEntityResolutionPipeline(text)
+                anonymized_text += engine.anonymize(text)
+                
+            anonymized_file_text[file_name] = anonymized_text
+            print(f"Processed and anonymized: {file_name}")
+    # print(anonymized_file_text)
+    return jsonify({'message': f'{len(files)} file(s) uploaded and processed successfully.'})
 
 
 @app.route('/clear_anonymized_text', methods=['POST'])
 def clear_anonymized_text():
-    global anonymized_file_text
-    anonymized_file_text = ""  # Clear the global variable
-    return jsonify({'message': 'Anonymized file text cleared successfully.'})
-
+    file_name = request.json.get('fileName')
+    if file_name in anonymized_file_text:
+        del anonymized_file_text[file_name]
+        # print(anonymized_file_text)
+        return jsonify({'message': f'Anonymized text for {file_name} cleared successfully.'})
+    else:
+        return jsonify({'message': 'File not found.'})
+    
 
 if __name__ == '__main__':
     app.run(debug=True)
