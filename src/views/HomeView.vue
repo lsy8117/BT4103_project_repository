@@ -139,13 +139,13 @@ export default {
 
     async handleSubmit() {
       if (this.userPrompt.trim() === '') {
-        alert('Please enter a valid query.')
-        return
+        alert('Please enter a valid query.');
+        return;
       }
 
       // Handle file along with the user query (if any file is uploaded)
-      const formData = new FormData()
-      formData.append('query', this.userPrompt) // Sending the query
+      const formData = new FormData();
+      formData.append('query', this.userPrompt); // Sending the query
 
       try {
         // Sending the text to the Flask backend
@@ -157,26 +157,33 @@ export default {
               'Content-Type': 'multipart/form-data',
             },
           }
-        )
+        );
 
-        // Extract the anonymized text from the response
-        const anonymizedQuery = anonymizerResponse.data.anonymized_query // Change this according to output desired.
-        // Add the query and the anonymized response to the chat history
+        // Extract the anonymized query, gemini output, and deanonymized output from the response
+        const anonymizedQuery = anonymizerResponse.data.anonymized_query;
+        const geminiOutput = anonymizerResponse.data.gemini_output;
+        const deanonymizedOutput = anonymizerResponse.data.deanonymized_output;
+
+        // Log anonymized query and gemini output to the console
+        console.log('Anonymized Query:', anonymizedQuery);
+        console.log('Gemini Output:', geminiOutput);
+
+        // Add the deanonymized output to the chat history
         this.chatHistory.push({
           query: this.userPrompt,
-          response: anonymizedQuery, // Display the anonymized text
+          response: deanonymizedOutput, // Only display the deanonymized output
           feedback: null, // Feedback will be either 'like' or 'dislike'
-        })
+        });
 
-        // Clear the userPrompt and the uploaded file for the next query
-        this.userPrompt = ''
+        // Clear the userPrompt for the next query
+        this.userPrompt = '';
 
         // Ensure the chat scrolls to the bottom
         this.$nextTick(() => {
-          this.scrollToBottom()
-        })
+          this.scrollToBottom();
+        });
       } catch (error) {
-        console.error('There was an error anonymizing the data:', error)
+        console.error('There was an error anonymizing the data:', error);
       }
     },
 
@@ -201,9 +208,7 @@ export default {
             // Prepare the form data
             const formData = new FormData()
             formData.append('file', file)
-            this.chatHistory.push({
-              query: 'Uploading file. Please wait.',
-            })
+            alert('Uploading file. Please wait.');
 
             try {
               // Send the file to the Flask backend
@@ -217,9 +222,7 @@ export default {
                 }
               )
               this.uploadedFiles.push(file)
-              this.chatHistory.push({
-                response: uploadResponse.data.message,
-              })
+              alert(uploadResponse.data.message);
             } catch (error) {
               console.error('Error uploading file:', error)
               alert('There was an error uploading the file.')
@@ -244,9 +247,7 @@ export default {
         this.uploadedFiles = this.uploadedFiles.filter(
           (file) => file !== fileToRemove
         )
-        this.chatHistory.push({
-          response: removeResponse.data.message,
-        })
+        alert(removeResponse.data.message)
       } catch (error) {
         console.error('Error clearing anonymized file text:', error)
       }
