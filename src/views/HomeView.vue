@@ -269,7 +269,7 @@ export default {
 .chat-history {
   flex-grow: 1;
   margin-bottom: 20px;
-  max-height: 400px;
+  /* max-height: 400px; */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -280,6 +280,7 @@ export default {
 .response-entry {
   display: flex;
   flex-direction: column;
+  white-space: pre-wrap;
 }
 
 .user-query {
