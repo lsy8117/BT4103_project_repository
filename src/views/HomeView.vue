@@ -99,6 +99,7 @@
             <!-- File upload for PDF attachments -->
             <input
               type="file"
+              ref="fileInput"
               @change="handleFileUpload"
               multiple
               accept="application/pdf"
@@ -249,6 +250,10 @@ export default {
         })
       } catch (error) {
         console.error('Error clearing anonymized file text:', error)
+      }
+      // Reset the input element to allow re-uploading the same file
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = ''
       }
     },
   },
