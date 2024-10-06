@@ -13,6 +13,11 @@ model = AutoModelForTokenClassification.from_pretrained("dslim/bert-large-NER")
 # Create NER pipeline
 nlp = pipeline("ner", model=model, tokenizer=tokenizer)
 
+# Track the names that appear so far for the current conversation
+current_unique_names = set()
+# Track the canonical names that anonymizer uses to anonymize names
+current_canonical_names = set()
+
 def enhancedEntityResolutionPipeline(text):
     # Check if the text ends with a period, because if the name appears as the last word of the sentence but without a period, the NER won't recognize it as a name.
     if not text.endswith('.'):
@@ -39,30 +44,53 @@ def enhancedEntityResolutionPipeline(text):
     if current_entity:  # Append the last entity if any
         combined_names.append(current_entity)
         
-    # Step 2: Linking similar names
-    # Dictionary to hold potential links and their scores
-    links = defaultdict(dict)
+    # Update global unique names and prepare for linkage
+    new_names_set = set(combined_names)
+    current_unique_names.update(new_names_set)
+    print('Global Unique Names: ', current_unique_names)
+
+    # Step 2: Linking similar names and selecting the canonical name for each group of similar names
+    # Dictionary to hold potential links
+    links = defaultdict(set)
+    # Initialize links dictionary with new names to include single names in current text
+    for name in new_names_set:
+        links[name] = set()
 
     # Find matches for each name excluding itself, only once per pair
-    for i, name in enumerate(combined_names):
+    for i, name in enumerate(current_unique_names):
         # Loops over subsequent names to avoid comparing a name with itself and to prevent comparing pairs of names more than once.
-        for other in combined_names[i+1:]:
+        for other in list(current_unique_names)[i+1:]:
             score = fuzz.WRatio(name, other)
             if score >= 85:
-                links[name][other] = score
-                links[other][name] = score  # Symmetrically link both ways to avoid later recursion
+                links[name].add(other)
+                links[other].add(name) # Symmetrically link both ways to avoid later recursion
 
+    print('Current Linking Names ', links)
     # Determine canonical names based on name length
     canonical_names = {}
     for name, linked_names in links.items():
-        # Include the original name in the comparison set
-        all_names = {name} | set(linked_names.keys())
-        # Determine the canonical name as the longest name
-        canonical = max(all_names, key=len)
-        # Assign the canonical name to all linked names and the name itself
-        for n in all_names:
-            canonical_names[n] = canonical
+        if linked_names:
+            # Include the original name in the comparison set
+            all_names = {name} | linked_names
+            # Prioritize existing canonical names if present
+            potential_canonical_candidate = (current_canonical_names & all_names)
+            if potential_canonical_candidate:
+                canonical = potential_canonical_candidate.pop()
+            else:
+                # Determine the canonical name as the longest name
+                canonical = max(all_names, key=len)
+                # Add the canonical name for this group to the global canonical name list
+                current_canonical_names.add(canonical)
             
+            # Assign the canonical name to all linked names and the name itself
+            for n in all_names:
+                canonical_names[n] = canonical
+        else:
+            # Handle names without linking names directly
+            current_canonical_names.add(name)
+    
+    print('Current Canonical Name Dic: ', canonical_names)
+    print('Global Canonical Names: ', current_canonical_names)
     # Step 3: Replace similar names with their canonical name
     # Sort the names by length in descending order to ensure that longer names (which might contain shorter names within them) are replaced first, preventing partial replacements of substrings in longer names
     sorted_names = sorted(canonical_names.items(), key=lambda x: len(x[0]), reverse=True)
