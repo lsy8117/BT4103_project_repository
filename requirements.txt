@@ -9,4 +9,7 @@ presidio-analyzer
 Faker
 fuzzysearch
 rapidfuzz
-
+google-generativeai
+routellm
+qdrant-client
+sentence-transformers
