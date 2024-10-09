@@ -61,7 +61,7 @@ def enhancedEntityResolutionPipeline(text):
         # Loops over subsequent names to avoid comparing a name with itself and to prevent comparing pairs of names more than once.
         for other in list(current_unique_names)[i+1:]:
             score = fuzz.WRatio(name, other)
-            if score >= 85:
+            if score >= 70:
                 links[name].add(other)
                 links[other].add(name) # Symmetrically link both ways to avoid later recursion
 
@@ -94,6 +94,7 @@ def enhancedEntityResolutionPipeline(text):
     # Step 3: Replace similar names with their canonical name
     # Sort the names by length in descending order to ensure that longer names (which might contain shorter names within them) are replaced first, preventing partial replacements of substrings in longer names
     sorted_names = sorted(canonical_names.items(), key=lambda x: len(x[0]), reverse=True)
+    print("Sorted Names: ", sorted_names)
     
     # List to collect all replacements
     replacements = []
