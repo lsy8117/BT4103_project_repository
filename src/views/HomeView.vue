@@ -99,6 +99,7 @@
             <!-- File upload for PDF attachments -->
             <input
               type="file"
+              ref="fileInput"
               @change="handleFileUpload"
               multiple
               accept="application/pdf"
@@ -252,6 +253,10 @@ export default {
       } catch (error) {
         console.error('Error clearing anonymized file text:', error)
       }
+      // Reset the input element to allow re-uploading the same file
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = ''
+      }
     },
   },
 }
@@ -271,7 +276,7 @@ export default {
 .chat-history {
   flex-grow: 1;
   margin-bottom: 20px;
-  max-height: 400px;
+  /* max-height: 400px; */
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -282,6 +287,7 @@ export default {
 .response-entry {
   display: flex;
   flex-direction: column;
+  white-space: pre-wrap;
 }
 
 .user-query {

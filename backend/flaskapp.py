@@ -72,7 +72,7 @@ def main_pipeline():
         
     # Deanonymize text here
     deanonymized_output = engine.deanonymize(response)
-    print("deanonymized_output: ", deanonymized_output)
+    print("Deanonymized_output: ", deanonymized_output)
 
     # Return the result as a JSON response
     return jsonify({'anonymized_query': anonymized_query,
