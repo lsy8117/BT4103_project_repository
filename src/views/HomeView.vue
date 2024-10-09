@@ -167,6 +167,7 @@ export default {
         // Log anonymized query and gemini output to the console
         console.log('Anonymized Query:', anonymizedQuery);
         console.log('Gemini Output:', geminiOutput);
+        console.log('Deanonymized Output: ', deanonymizedOutput)
 
         // Add the deanonymized output to the chat history
         this.chatHistory.push({

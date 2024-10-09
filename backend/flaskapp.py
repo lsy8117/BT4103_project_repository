@@ -6,18 +6,19 @@ import re
 import io
 import pymupdf
 import google.generativeai as genai
+import os
+
+os.environ["OPENAI_API_KEY"] = "sk-XXXXXX"
+os.environ['GEMINI_API_KEY'] = "AIzaSyAikllyKYugxLfq4_JwGXkfLKyxh2D6PzA"
+
+from routellm.controller import Controller
 
 engine = AnonymizerEngine()
 
-anonymized_file_text = ""
+anonymized_file_text = {}
 
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests (important for frontend communication)
-
-API_KEY="AIzaSyCRu5K49RBCUPipVe02lRJgVHK1-HSvXus"
-genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel("gemini-1.5-flash")
-
 
 @app.route('/mainpipeline', methods=['POST'])
 def main_pipeline():
@@ -29,58 +30,76 @@ def main_pipeline():
     query = enhancedEntityResolutionPipeline(query)  # preprocess names
 
     # Anonymize text here
+    print("Query: ", query)
     anonymized_query = engine.anonymize(query)
-    print(anonymized_query)
-
+    print("Anonymized_query: ", anonymized_query)
+    
     # Combine the user query with the extracted anonymized PDF content
     if anonymized_file_text:
-        anonymized_full_prompt = anonymized_file_text + "\n" + anonymized_query
+        anonymized_full_prompt = "\n".join(anonymized_file_text.values()) + "\n" + anonymized_query
     else:
         anonymized_full_prompt = anonymized_query
-    
-    # GEMINI MODEL HERE
-    prompt = anonymized_full_prompt
-    gemini_response = model.generate_content(prompt)
-    print("Gemini response: ", gemini_response)
-    if gemini_response._result.candidates and gemini_response._result.candidates[0].content.parts:
-        gemini_output = gemini_response._result.candidates[0].content.parts[0].text
-    else:
-        gemini_output = "No text generated."
 
-    print(f"Gemini Output: {gemini_output}")
-    
+    prompt = anonymized_full_prompt
+
+    client = Controller(
+        routers=["bert"],
+        strong_model="gemini/gemini-pro",
+        weak_model="ollama_chat/seeyssimon/bt4103_gguf_finance",
+    )
+
+    response = client.chat.completions.create(
+        model="router-bert-0.1",
+        messages=[
+            {"role": "user", "content": prompt,}
+        ]
+    )
+    #print("response: ", response)
+    response = response.choices[0].message.content
+    #print("message: ", response)
+        
     # Deanonymize text here
-    deanonymized_output = engine.deanonymize(gemini_output)
+    deanonymized_output = engine.deanonymize(response)
+    print("deanonymized_output: ", deanonymized_output)
 
     # Return the result as a JSON response
-    return jsonify({'anonymized_query': anonymized_full_prompt,
-                    'gemini_output': gemini_output,
+    return jsonify({'anonymized_query': anonymized_query,
+                    'gemini_output': response,
                     'deanonymized_output': deanonymized_output})
 
 
 @app.route('/upload', methods=['POST'])
-def upload_file():
-    global anonymized_file_text
-    file = request.files['file'].read()
+def upload_files():
+    files = request.files.getlist('file')
+    for file in files:
+        file_name = file.filename
+        file_content = file.read()
 
-    with io.BytesIO(file) as pdf_file:
-        pdf_document = pymupdf.open(stream = pdf_file, filetype="pdf")
-        anonymized_file_text = ''
-        for page in pdf_document:
-            text = page.get_text("text")
-            # text = re.sub(r'(\d)\s+(\d)', r'\1\2', text)  # computationally expensive, especially for large files.
-            text = enhancedEntityResolutionPipeline(text)
-            anonymized_file_text += engine.anonymize(text)
-    print(anonymized_file_text)
-    return jsonify({'message': 'File uploaded successfully.'})
+        with io.BytesIO(file_content) as pdf_file:
+            pdf_document = pymupdf.open(stream=pdf_file, filetype="pdf")
+            anonymized_text = ''
+            for page in pdf_document:
+                text = page.get_text("text")
+                # text = re.sub(r'(\d)\s+(\d)', r'\1\2', text)  # computationally expensive, especially for large files.
+                text = enhancedEntityResolutionPipeline(text)
+                anonymized_text += engine.anonymize(text)
+                
+            anonymized_file_text[file_name] = anonymized_text
+            print(f"Processed and anonymized: {file_name}")
+    # print(anonymized_file_text)
+    return jsonify({'message': f'{len(files)} file(s) uploaded and processed successfully.'})
 
 
 @app.route('/clear_anonymized_text', methods=['POST'])
 def clear_anonymized_text():
-    global anonymized_file_text
-    anonymized_file_text = ""  # Clear the global variable
-    return jsonify({'message': 'Anonymized file text cleared successfully.'})
-
+    file_name = request.json.get('fileName')
+    if file_name in anonymized_file_text:
+        del anonymized_file_text[file_name]
+        # print(anonymized_file_text)
+        return jsonify({'message': f'Anonymized text for {file_name} cleared successfully.'})
+    else:
+        return jsonify({'message': 'File not found.'})
+    
 
 if __name__ == '__main__':
     app.run(debug=True)
