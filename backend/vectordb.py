@@ -52,8 +52,8 @@ class Vectordb:
 
     ## For most relevant output
     output = hits[0].payload[output_col]
-    score = hits[0].score
+    score = round(hits[0].score, 2)
     if score < self.threshold:
-      print(f"No similar query... Closest query threshold = {round(score, 2)}")
-      return None, 0
+      print(f"No similar query. Similarty score = {score} < {self.threshold}")
+      output = None
     return (output, score)
