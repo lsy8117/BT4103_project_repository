@@ -56,16 +56,18 @@ def main_pipeline():
 
     client = Controller(
         routers=["bert"],
-        strong_model="gemini/gemini-pro",
+        strong_model="gemini/gemini-1.5-flash",
         weak_model="ollama_chat/seeyssimon/bt4103_gguf_finance",
     )
 
     response = client.chat.completions.create(
-        model="router-bert-0.1",
+        model="router-bert-0.5",
         messages=[
             {"role": "user", "content": prompt,}
         ]
     )
+    model_used = response.model
+
     #print("response: ", response)
     response = response.choices[0].message.content
     #print("message: ", response)
@@ -77,7 +79,8 @@ def main_pipeline():
     # Return the result as a JSON response
     return jsonify({'anonymized_query': anonymized_query,
                     'gemini_output': response,
-                    'deanonymized_output': deanonymized_output})
+                    'deanonymized_output': deanonymized_output, 
+                    'model_used': model_used })
 
 
 @app.route('/upload', methods=['POST'])

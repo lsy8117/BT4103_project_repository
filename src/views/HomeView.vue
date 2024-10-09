@@ -18,14 +18,19 @@
 
         <!-- Response (Left) -->
         <div v-if="entry.response" class="response">
+          <!-- Display the model used for this response -->
+          <p>[{{ entry.model }}]</p>
           <p>{{ entry.response }}</p>
           <!-- Like/Dislike buttons -->
           <div class="feedback-buttons">
-            <button @click="handleFeedback(index, 'like')">
+            <button 
+              :class="{ 'button-liked': entry.feedback === 'like' }" 
+              @click="handleFeedback(index)"
+            >
               <font-awesome-icon :icon="['fas', 'thumbs-up']" />
             </button>
             <span v-if="entry.feedback === 'like'" class="liked">
-              You liked this response
+              <i>You liked this response</i>
             </span>
           </div>
         </div>
@@ -130,6 +135,7 @@ export default {
       userPrompt: '', // to store user input or pre-built prompt
       chatHistory: [], // to store chat history with queries and responses
       uploadedFiles: [], // to store the single uploaded file
+      model: '',
     }
   },
   methods: {
@@ -164,14 +170,17 @@ export default {
         const anonymizedQuery = anonymizerResponse.data.anonymized_query;
         const geminiOutput = anonymizerResponse.data.gemini_output;
         const deanonymizedOutput = anonymizerResponse.data.deanonymized_output;
+        const model = anonymizerResponse.data.model_used; 
 
         // Log anonymized query and gemini output to the console
         console.log('Anonymized Query:', anonymizedQuery);
         console.log('Gemini Output:', geminiOutput);
         console.log('Deanonymized Output: ', deanonymizedOutput)
+        console.log('Model used: ', model)
 
         // Add the deanonymized output to the chat history
         this.chatHistory.push({
+          model: model,
           query: this.userPrompt,
           response: deanonymizedOutput, // Only display the deanonymized output
           feedback: null, // Feedback will be either 'like' or 'dislike'
@@ -189,8 +198,12 @@ export default {
       }
     },
 
-    handleFeedback(index, feedback) {
-      this.chatHistory[index].feedback = feedback
+    handleFeedback(index) {
+      if (this.chatHistory[index].feedback === 'like') {
+        this.chatHistory[index].feedback = null; // Toggle to remove like
+      } else {
+        this.chatHistory[index].feedback = 'like'; // Set like
+      }
     },
 
     scrollToBottom() {
@@ -321,6 +334,7 @@ export default {
 /* Feedback buttons */
 .feedback-buttons {
   margin-top: 10px;
+  margin-bottom: 10px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -328,7 +342,6 @@ export default {
 
 .feedback-buttons button {
   margin-right: 10px;
-  margin-bottom: 10px;
   padding: 5px 10px;
   font-size: 0.9em;
   font-family: 'Montserrat', sans-serif;
@@ -342,6 +355,16 @@ export default {
 
 .feedback-buttons button:hover {
   background-color: rgb(224, 246, 255);
+}
+
+.liked {
+  font-style: italic;
+  font-size: small;
+}
+
+.button-liked {
+  background-color:rgb(194, 229, 242)!important;
+  border: none;
 }
 
 /* Prebuilt Prompts Styling */
@@ -466,27 +489,5 @@ export default {
 
 .submit-button:hover {
   background-color: rgb(237, 179, 107);
-}
-
-.feedback-buttons {
-  margin-top: 10px;
-}
-
-.feedback-buttons button {
-  margin-right: 10px;
-  margin-bottom: 10px;
-  padding: 5px 10px;
-  font-size: 0.9em;
-  font-family: 'Montserrat', sans-serif;
-  background-color: white;
-  border-width: 0.2px;
-  border-radius: 4px;
-  border-color: black;
-  cursor: pointer;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-.feedback-buttons button:hover {
-  background-color: rgb(224, 246, 255);
 }
 </style>
