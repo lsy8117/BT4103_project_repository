@@ -96,9 +96,11 @@
                   type="button"
                   @click="removeFile(file)"
                   class="remove-file-button"
+                  v-if="!isRemovingFile"
                 >
                   X
                 </button>
+                <div v-else class="spinner"></div>
               </div>
             </div>
             <!-- File upload for PDF attachments -->
@@ -110,8 +112,14 @@
               accept="application/pdf"
               class="file-input"
             />
+            <div v-if="isUploading" class="spinner"></div>
           </div>
-          <button type="submit" class="submit-button">Submit</button>
+          <template v-if="!isSubmitting">
+            <button type="submit" class="submit-button">Submit</button>
+          </template>
+          <template v-else>
+            <div class="spinner"></div> <!-- Spinner for submit button -->
+          </template>
         </div>
       </div>
     </form>
@@ -136,6 +144,9 @@ export default {
       chatHistory: [], // to store chat history with queries and responses
       uploadedFiles: [], // to store the single uploaded file
       model: '',
+      isSubmitting: false, // Track loading state for submit button
+      isUploading: false, 
+      isRemovingFile: false,
     }
   },
   methods: {
@@ -149,6 +160,8 @@ export default {
         alert('Please enter a valid query.');
         return;
       }
+
+      this.isSubmitting = true;
 
       // Handle file along with the user query (if any file is uploaded)
       const formData = new FormData();
@@ -195,6 +208,8 @@ export default {
         });
       } catch (error) {
         console.error('There was an error anonymizing the data:', error);
+      } finally {
+        this.isSubmitting = false;
       }
     },
 
@@ -218,12 +233,12 @@ export default {
       )
 
       if (newFiles.length > 0) {
+        this.isUploading = true;
         newFiles.forEach(async (file) => {
           if (file.type === 'application/pdf') {
             // Prepare the form data
             const formData = new FormData()
             formData.append('file', file)
-            alert('Uploading file. Please wait.');
 
             try {
               // Send the file to the Flask backend
@@ -237,10 +252,11 @@ export default {
                 }
               )
               this.uploadedFiles.push(file)
-              alert(uploadResponse.data.message);
             } catch (error) {
               console.error('Error uploading file:', error)
               alert('There was an error uploading the file.')
+            } finally {
+              this.isUploading = false;
             }
           } else {
             alert('Please upload a valid PDF file.')
@@ -250,6 +266,7 @@ export default {
     },
 
     async removeFile(fileToRemove) {
+      this.isRemovingFile = true;
       try {
         // Send request to backend to clear the anonymized text
         const removeResponse = await axios.post(
@@ -262,9 +279,10 @@ export default {
         this.uploadedFiles = this.uploadedFiles.filter(
           (file) => file !== fileToRemove
         )
-        alert(removeResponse.data.message)
       } catch (error) {
         console.error('Error clearing anonymized file text:', error)
+      } finally {
+        this.isRemovingFile = false;
       }
       // Reset the input element to allow re-uploading the same file
       if (this.$refs.fileInput) {
@@ -490,4 +508,19 @@ export default {
 .submit-button:hover {
   background-color: rgb(237, 179, 107);
 }
+
+.spinner {
+  border: 4px solid #f3f3f3; 
+  border-top: 4px solid #de9534;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 </style>
