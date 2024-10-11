@@ -1,6 +1,6 @@
 from langchain_experimental.data_anonymizer import PresidioReversibleAnonymizer
 # from langchain_experimental.data_anonymizer.deanonymizer_matching_strategies import case_insensitive_matching_strategy
-from deanonymize_strat import case_insensitive_matching_strategy
+from deanonymize_strat import exact_matching_strategy
 from faker import Faker
 from presidio_anonymizer.entities import OperatorConfig
 
@@ -32,7 +32,7 @@ class AnonymizerEngine:
         # Deanonymize the provided text.
         deanonymized_text = self.anonymizer.deanonymize(
             text,
-            deanonymizer_matching_strategy=case_insensitive_matching_strategy,
+            deanonymizer_matching_strategy=exact_matching_strategy,
         )
         return deanonymized_text
 

@@ -19,7 +19,8 @@ engine = AnonymizerEngine()
 anonymized_file_text = {}
 
 app = Flask(__name__)
-CORS(app)  # Allow cross-origin requests (important for frontend communication)
+
+CORS(app, resources={r"/*": {"origins": "*"}}) # Allow cross-origin requests (important for frontend communication)
 
 @app.route('/mainpipeline', methods=['POST'])
 def main_pipeline():
@@ -86,8 +87,6 @@ def main_pipeline():
         
         if response == None:
             response = "Unable to generate response"
-        
-        print(response)
             
         # Deanonymize text here
         deanonymized_output = engine.deanonymize(response)
@@ -136,4 +135,4 @@ def clear_anonymized_text():
     
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)

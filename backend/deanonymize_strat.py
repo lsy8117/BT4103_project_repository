@@ -41,3 +41,37 @@ def case_insensitive_matching_strategy(
                 continue  # Skip patterns that cause regex errors
 
     return text
+
+def exact_matching_strategy(
+    text: str, deanonymizer_mapping: Mapping[str, Mapping[str, str]]
+) -> str:
+    """Exact matching strategy for deanonymization.
+
+    It replaces all the anonymized entities with the original ones
+        irrespective of their letter case.
+
+    Args:
+        text: Text to deanonymize.
+        deanonymizer_mapping: Mapping between anonymized entities and original ones.
+    """
+
+    # Iterate over all the entities (PERSON, EMAIL_ADDRESS, etc.)
+    for entity_type, mappings in deanonymizer_mapping.items():
+        for anonymized, original in mappings.items():
+            if not anonymized:
+                logger.error(
+                    f"Anonymized pattern for entity '{entity_type}' is empty. Skipping.")
+                continue  # Skip empty patterns
+
+            # Escape the anonymized string to treat it as a literal string
+            escaped_anonymized = re.escape(anonymized)
+
+            try:
+                # Perform case-insensitive substitution
+                text = text.replace(escaped_anonymized, original)
+            except re.error as e:
+                logger.error(
+                    f"Regex error for pattern '{escaped_anonymized}': {e}. Skipping this pattern.")
+                continue  # Skip patterns that cause regex errors
+
+    return text
