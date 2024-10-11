@@ -83,6 +83,11 @@ def main_pipeline():
         #print("response: ", response)
         response = response.choices[0].message.content
         #print("message: ", response)
+        
+        if response == None:
+            response = "Unable to generate response"
+        
+        print(response)
             
         # Deanonymize text here
         deanonymized_output = engine.deanonymize(response)

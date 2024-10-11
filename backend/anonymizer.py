@@ -1,5 +1,6 @@
 from langchain_experimental.data_anonymizer import PresidioReversibleAnonymizer
-from langchain_experimental.data_anonymizer.deanonymizer_matching_strategies import case_insensitive_matching_strategy
+# from langchain_experimental.data_anonymizer.deanonymizer_matching_strategies import case_insensitive_matching_strategy
+from deanonymize_strat import case_insensitive_matching_strategy
 from faker import Faker
 from presidio_anonymizer.entities import OperatorConfig
 
