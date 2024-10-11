@@ -37,47 +37,64 @@ def main_pipeline():
     query = enhancedEntityResolutionPipeline(query)  # preprocess names
 
     # Retrieve from vectordb
-    output, score = vectordb.query(query, collection_name, "answer")
-    print(f"score: {score}")
-    print(output)
+    response, score = vectordb.query(query, collection_name, "answer")
 
-    # Anonymize text here
-    print("Query: ", query)
-    anonymized_query = engine.anonymize(query)
-    print("Anonymized_query: ", anonymized_query)
-    
-    # Combine the user query with the extracted anonymized PDF content
-    if anonymized_file_text:
-        anonymized_full_prompt = "\n".join(anonymized_file_text.values()) + "\n" + anonymized_query
-    else:
-        anonymized_full_prompt = anonymized_query
-
-    prompt = anonymized_full_prompt
-
-    client = Controller(
-        routers=["bert"],
-        strong_model="gemini/gemini-pro",
-        weak_model="ollama_chat/seeyssimon/bt4103_gguf_finance",
-    )
-
-    response = client.chat.completions.create(
-        model="router-bert-0.1",
-        messages=[
-            {"role": "user", "content": prompt,}
-        ]
-    )
-    #print("response: ", response)
-    response = response.choices[0].message.content
-    #print("message: ", response)
+    # Return response from Vectordb if similar query is found
+    if response != None:
+        print(f"Similar query found in vectordb. Similarity score: {score}")
+        print(f"Vectordb output: {response}")
+        # Return the result as a JSON response
+        return jsonify({
+            'anonymized_query': query,
+            'gemini_output': f'Similar query found in vectordb. Similarity score: {score}',
+            'deanonymized_output': response, 
+            'model_used': 'Vectordb'
+            })
         
-    # Deanonymize text here
-    deanonymized_output = engine.deanonymize(response)
-    print("Deanonymized_output: ", deanonymized_output)
+    # Execute main pipeline if similar query not found
+    else:
+        # Anonymize text here
+        print("Query: ", query)
+        anonymized_query = engine.anonymize(query)
+        print("Anonymized_query: ", anonymized_query)
+        
+        # Combine the user query with the extracted anonymized PDF content
+        if anonymized_file_text:
+            anonymized_full_prompt = "\n".join(anonymized_file_text.values()) + "\n" + anonymized_query
+        else:
+            anonymized_full_prompt = anonymized_query
 
-    # Return the result as a JSON response
-    return jsonify({'anonymized_query': anonymized_query,
-                    'gemini_output': response,
-                    'deanonymized_output': deanonymized_output})
+        prompt = anonymized_full_prompt
+
+        client = Controller(
+            routers=["bert"],
+            strong_model="gemini/gemini-1.5-flash",
+            weak_model="ollama_chat/seeyssimon/bt4103_gguf_finance_v2",
+        )
+
+        response = client.chat.completions.create(
+            model="router-bert-0.5",
+            messages=[
+                {"role": "user", "content": prompt,}
+            ]
+        )
+        model_used = response.model
+
+        #print("response: ", response)
+        response = response.choices[0].message.content
+        #print("message: ", response)
+            
+        # Deanonymize text here
+        deanonymized_output = engine.deanonymize(response)
+        print("Deanonymized_output: ", deanonymized_output)
+
+        # Return the result as a JSON response
+        return jsonify({
+            'anonymized_query': anonymized_query,
+            'gemini_output': response,
+            'deanonymized_output': deanonymized_output, 
+            'model_used': model_used
+            })
 
 
 @app.route('/upload', methods=['POST'])

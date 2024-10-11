@@ -18,14 +18,19 @@
 
         <!-- Response (Left) -->
         <div v-if="entry.response" class="response">
+          <!-- Display the model used for this response -->
+          <p>[{{ entry.model }}]</p>
           <p>{{ entry.response }}</p>
           <!-- Like/Dislike buttons -->
           <div class="feedback-buttons">
-            <button @click="handleFeedback(index, 'like')">
+            <button 
+              :class="{ 'button-liked': entry.feedback === 'like' }" 
+              @click="handleFeedback(index)"
+            >
               <font-awesome-icon :icon="['fas', 'thumbs-up']" />
             </button>
             <span v-if="entry.feedback === 'like'" class="liked">
-              You liked this response
+              <i>You liked this response</i>
             </span>
           </div>
         </div>
@@ -91,9 +96,11 @@
                   type="button"
                   @click="removeFile(file)"
                   class="remove-file-button"
+                  v-if="!isRemovingFile"
                 >
                   X
                 </button>
+                <div v-else class="spinner"></div>
               </div>
             </div>
             <!-- File upload for PDF attachments -->
@@ -105,8 +112,14 @@
               accept="application/pdf"
               class="file-input"
             />
+            <div v-if="isUploading" class="spinner"></div>
           </div>
-          <button type="submit" class="submit-button">Submit</button>
+          <template v-if="!isSubmitting">
+            <button type="submit" class="submit-button">Submit</button>
+          </template>
+          <template v-else>
+            <div class="spinner"></div> <!-- Spinner for submit button -->
+          </template>
         </div>
       </div>
     </form>
@@ -130,6 +143,10 @@ export default {
       userPrompt: '', // to store user input or pre-built prompt
       chatHistory: [], // to store chat history with queries and responses
       uploadedFiles: [], // to store the single uploaded file
+      model: '',
+      isSubmitting: false, // Track loading state for submit button
+      isUploading: false, 
+      isRemovingFile: false,
     }
   },
   methods: {
@@ -143,6 +160,8 @@ export default {
         alert('Please enter a valid query.');
         return;
       }
+
+      this.isSubmitting = true;
 
       // Handle file along with the user query (if any file is uploaded)
       const formData = new FormData();
@@ -164,14 +183,17 @@ export default {
         const anonymizedQuery = anonymizerResponse.data.anonymized_query;
         const geminiOutput = anonymizerResponse.data.gemini_output;
         const deanonymizedOutput = anonymizerResponse.data.deanonymized_output;
+        const model = anonymizerResponse.data.model_used; 
 
         // Log anonymized query and gemini output to the console
         console.log('Anonymized Query:', anonymizedQuery);
         console.log('Gemini Output:', geminiOutput);
         console.log('Deanonymized Output: ', deanonymizedOutput)
+        console.log('Model used: ', model)
 
         // Add the deanonymized output to the chat history
         this.chatHistory.push({
+          model: model,
           query: this.userPrompt,
           response: deanonymizedOutput, // Only display the deanonymized output
           feedback: null, // Feedback will be either 'like' or 'dislike'
@@ -186,11 +208,17 @@ export default {
         });
       } catch (error) {
         console.error('There was an error anonymizing the data:', error);
+      } finally {
+        this.isSubmitting = false;
       }
     },
 
-    handleFeedback(index, feedback) {
-      this.chatHistory[index].feedback = feedback
+    handleFeedback(index) {
+      if (this.chatHistory[index].feedback === 'like') {
+        this.chatHistory[index].feedback = null; // Toggle to remove like
+      } else {
+        this.chatHistory[index].feedback = 'like'; // Set like
+      }
     },
 
     scrollToBottom() {
@@ -205,12 +233,12 @@ export default {
       )
 
       if (newFiles.length > 0) {
+        this.isUploading = true;
         newFiles.forEach(async (file) => {
           if (file.type === 'application/pdf') {
             // Prepare the form data
             const formData = new FormData()
             formData.append('file', file)
-            alert('Uploading file. Please wait.');
 
             try {
               // Send the file to the Flask backend
@@ -224,10 +252,11 @@ export default {
                 }
               )
               this.uploadedFiles.push(file)
-              alert(uploadResponse.data.message);
             } catch (error) {
               console.error('Error uploading file:', error)
               alert('There was an error uploading the file.')
+            } finally {
+              this.isUploading = false;
             }
           } else {
             alert('Please upload a valid PDF file.')
@@ -237,6 +266,7 @@ export default {
     },
 
     async removeFile(fileToRemove) {
+      this.isRemovingFile = true;
       try {
         // Send request to backend to clear the anonymized text
         const removeResponse = await axios.post(
@@ -249,9 +279,10 @@ export default {
         this.uploadedFiles = this.uploadedFiles.filter(
           (file) => file !== fileToRemove
         )
-        alert(removeResponse.data.message)
       } catch (error) {
         console.error('Error clearing anonymized file text:', error)
+      } finally {
+        this.isRemovingFile = false;
       }
       // Reset the input element to allow re-uploading the same file
       if (this.$refs.fileInput) {
@@ -321,6 +352,7 @@ export default {
 /* Feedback buttons */
 .feedback-buttons {
   margin-top: 10px;
+  margin-bottom: 10px;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -328,7 +360,6 @@ export default {
 
 .feedback-buttons button {
   margin-right: 10px;
-  margin-bottom: 10px;
   padding: 5px 10px;
   font-size: 0.9em;
   font-family: 'Montserrat', sans-serif;
@@ -342,6 +373,16 @@ export default {
 
 .feedback-buttons button:hover {
   background-color: rgb(224, 246, 255);
+}
+
+.liked {
+  font-style: italic;
+  font-size: small;
+}
+
+.button-liked {
+  background-color:rgb(194, 229, 242)!important;
+  border: none;
 }
 
 /* Prebuilt Prompts Styling */
@@ -468,25 +509,18 @@ export default {
   background-color: rgb(237, 179, 107);
 }
 
-.feedback-buttons {
-  margin-top: 10px;
+.spinner {
+  border: 4px solid #f3f3f3; 
+  border-top: 4px solid #de9534;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
 }
 
-.feedback-buttons button {
-  margin-right: 10px;
-  margin-bottom: 10px;
-  padding: 5px 10px;
-  font-size: 0.9em;
-  font-family: 'Montserrat', sans-serif;
-  background-color: white;
-  border-width: 0.2px;
-  border-radius: 4px;
-  border-color: black;
-  cursor: pointer;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.feedback-buttons button:hover {
-  background-color: rgb(224, 246, 255);
-}
 </style>
