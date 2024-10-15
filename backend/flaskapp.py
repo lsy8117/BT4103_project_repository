@@ -19,7 +19,7 @@ engine = AnonymizerEngine()
 anonymized_file_text = {}
 
 app = Flask(__name__)
-CORS(app)  # Allow cross-origin requests (important for frontend communication)
+CORS(app, origins=['http://127.0.0.1:5173', 'http://127.0.0.1:5000/mainpipeline'])  # Allow cross-origin requests (important for frontend communication)
 
 @app.route('/mainpipeline', methods=['POST'])
 def main_pipeline():
