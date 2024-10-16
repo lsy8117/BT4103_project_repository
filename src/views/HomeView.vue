@@ -207,7 +207,7 @@ export default {
           this.scrollToBottom();
         });
       } catch (error) {
-        console.error('There was an error anonymizing the data:', error);
+        console.error('There was an error in getting response:', error);
       } finally {
         this.isSubmitting = false;
       }
