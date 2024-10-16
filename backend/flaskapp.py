@@ -8,9 +8,10 @@ import io
 import pymupdf
 import google.generativeai as genai
 import os
+from tokens import vectordb_api_key, gemini_api_key
 
 os.environ["OPENAI_API_KEY"] = "sk-XXXXXX"
-os.environ['GEMINI_API_KEY'] = "AIzaSyAikllyKYugxLfq4_JwGXkfLKyxh2D6PzA"
+os.environ['GEMINI_API_KEY'] = gemini_api_key
 
 from routellm.controller import Controller
 
@@ -19,14 +20,12 @@ engine = AnonymizerEngine()
 anonymized_file_text = {}
 
 app = Flask(__name__)
-
-CORS(app, resources={r"/*": {"origins": "*"}}) # Allow cross-origin requests (important for frontend communication)
+CORS(app, origins=['http://127.0.0.1:5173', 'http://127.0.0.1:5000/mainpipeline'])  # Allow cross-origin requests (important for frontend communication)
 
 @app.route('/mainpipeline', methods=['POST'])
 def main_pipeline():
     
     # Vectordb
-    vectordb_api_key = "GM0ZIF4yhhRlLEdnAMh9slUJNV2hOU6JLDU7i0QOm1eocLIq-QUIzA"
     collection_name = "QnA"
     vectordb = Vectordb(vectordb_api_key)
     vectordb.set_threshold(0.8)
