@@ -23,4 +23,4 @@ langhchain.chains
 langchains.chains.combine_docuemnts
 langchain_core.documents
 langchain_ollama.llms
-
+langchain_core.prompts

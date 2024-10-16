@@ -14,6 +14,14 @@ from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from langchain_core.prompts import format_document
+from langchain.chains.combine_documents.base import (
+    DEFAULT_DOCUMENT_PROMPT,
+    DEFAULT_DOCUMENT_SEPARATOR,
+)
+
+
+
 os.environ["OPENAI_API_KEY"] = "sk-XXXXXX"
 os.environ['GEMINI_API_KEY'] = gemini_api_key
 
@@ -28,6 +36,7 @@ file_id_tracker = {}
 
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=100, chunk_overlap=20)
 retriever = vector_store.as_retriever()
+
 
 app = Flask(__name__)
 # Allow cross-origin requests (important for frontend communication)
@@ -70,10 +79,13 @@ def main_pipeline():
         print("Anonymized_query: ", anonymized_query)
         
         docs = retriever.invoke(anonymized_query)
+        print("Length: ", len(docs))
+        print("Docs list: ", docs)
 
-        anonymized_file_text = "\n\n".join([d.page_content for d in docs])
+        anonymized_file_text = DEFAULT_DOCUMENT_SEPARATOR.join([format_document(doc, DEFAULT_DOCUMENT_PROMPT) for doc in docs])
+        print("Anonymized file text: ", anonymized_file_text)
 
-        prompt = anonymized_query + "\n\nContext:" + anonymized_file_text
+        prompt = "Context: {context} \n\n Prompt: {input}".format(context=anonymized_file_text, input=anonymized_query)
 
         client = Controller(
             routers=["bert"],
@@ -87,6 +99,7 @@ def main_pipeline():
             model="router-bert-0.5",
             messages=messages
         )
+        
         model_used = response.model
 
         #print("response: ", response)
@@ -97,7 +110,7 @@ def main_pipeline():
             response = "Unable to generate response"
 
         messages.append({"role":"assistant", "content":response,})
-            
+        print("Messages: ", messages)
         # Deanonymize text here
         deanonymized_output = engine.deanonymize(response)
         print("Deanonymized_output: ", deanonymized_output)
@@ -130,7 +143,6 @@ def upload_files():
                 metadata["source"] = file_name
                 metadata["page"] = page_number
 
-                file_id_tracker[file_name].append(file_name+"_"+str(page_number))
 
                 text = page.get_text("text")
                 # text = re.sub(r'(\d)\s+(\d)', r'\1\2', text)  # computationally expensive, especially for large files.
@@ -139,11 +151,15 @@ def upload_files():
 
                 page_number += 1
 
-                lst_docs.append(Document(metadata = metadata, page_content=anonymized_text))
+                doc = Document(metadata = metadata, page_content=anonymized_text)
+
+                lst_docs.append(doc)
 
             splits = text_splitter.split_documents(lst_docs)
 
-            vector_store.add_documents(splits)
+            lst_ids = vector_store.add_documents(splits)
+            file_id_tracker[file_name].extend(lst_ids)
+
             print(f"Processed and anonymized: {file_name}")
     # print(anonymized_file_text)
     return jsonify({'message': f'{len(files)} file(s) uploaded and processed successfully.'})
@@ -153,9 +169,15 @@ def upload_files():
 def clear_anonymized_text():
     file_name = request.json.get('fileName')
     if file_name in file_id_tracker:
+        print("File name: ", file_name)
+        print("File id tracker: ", file_id_tracker)
+        print("File name present in file id tracker: ", file_name in file_id_tracker)
         
-        vector_store.delete_document(file_id_tracker[file_name])
-            
+        vector_store.delete(file_id_tracker[file_name])
+        print("Vector store: ", vector_store)
+
+        retriever = vector_store.as_retriever()
+
         # print(anonymized_file_text)
         return jsonify({'message': f'Anonymized text for {file_name} cleared successfully.'})
     else:
