@@ -15,3 +15,12 @@ qdrant-client
 sentence-transformers
 spacy
 en_core_web_lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.7.1/en_core_web_lg-3.7.1-py3-none-any.whl
+langchain_google_genai
+langchain_community.document_loaders
+langchain_core.vectorstores
+langchain_text_splitters
+langhchain.chains
+langchains.chains.combine_docuemnts
+langchain_core.documents
+langchain_ollama.llms
+
