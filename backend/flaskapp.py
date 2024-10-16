@@ -132,7 +132,20 @@ def clear_anonymized_text():
         return jsonify({'message': f'Anonymized text for {file_name} cleared successfully.'})
     else:
         return jsonify({'message': 'File not found.'})
-    
+
+@app.route('/handle_feedback', methods=['POST'])
+def handle_feedback():
+    query = request.json.get("query")
+    answer = request.json.get("answer")
+    document = [{
+        'query': query,
+        'answer': answer,
+    }]
+    collection_name = "QnA"
+    vectordb = Vectordb(vectordb_api_key)
+    print("Answer", answer)
+    vectordb.upload_docs(collection_name, document, "query")
+    return jsonify({'message': 'Uploaded query-answer to vectorDB.'})
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)
