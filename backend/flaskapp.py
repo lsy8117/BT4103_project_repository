@@ -8,35 +8,30 @@ import io
 import pymupdf
 import google.generativeai as genai
 import os
-from tokens import vectordb_api_key, gemini_api_key
 from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-
 from langchain_core.prompts import format_document
 from langchain.chains.combine_documents.base import (
     DEFAULT_DOCUMENT_PROMPT,
     DEFAULT_DOCUMENT_SEPARATOR,
 )
-
-
-
-os.environ["OPENAI_API_KEY"] = "sk-XXXXXX"
-os.environ['GEMINI_API_KEY'] = gemini_api_key
-
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv()) # get API keys from .env file
+google_api_key = os.environ.get('GOOGLE_API_KEY')
+vectordb_api_key = os.environ.get('VECTOR_DB_API_KEY')
 from routellm.controller import Controller
 
 engine = AnonymizerEngine()
 
-vector_store = InMemoryVectorStore(GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", google_api_key="AIzaSyDdT_445nDMi7b00sM0pYtgZoicoKvwyLE"))
+vector_store = InMemoryVectorStore(GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", google_api_key=google_api_key))
 
 messages = []
 file_id_tracker = {}
 
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=100, chunk_overlap=20)
 retriever = vector_store.as_retriever()
-
 
 app = Flask(__name__)
 # Allow cross-origin requests (important for frontend communication)
@@ -182,6 +177,20 @@ def clear_anonymized_text():
         return jsonify({'message': f'Anonymized text for {file_name} cleared successfully.'})
     else:
         return jsonify({'message': 'File not found.'})
+
+@app.route('/handle_feedback', methods=['POST'])
+def handle_feedback():
+    query = request.json.get("query")
+    answer = request.json.get("answer")
+    document = [{
+        'query': query,
+        'answer': answer,
+    }]
+    collection_name = "QnA"
+    vectordb = Vectordb(vectordb_api_key)
+    print("Answer", answer)
+    vectordb.upload_docs(collection_name, document, "query")
+    return jsonify({'message': 'Uploaded query-answer to vectorDB.'})
 
 if __name__ == '__main__':
     app.run(debug=True, use_reloader=False)

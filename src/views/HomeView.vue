@@ -213,11 +213,30 @@ export default {
       }
     },
 
-    handleFeedback(index) {
+    async handleFeedback(index) {
       if (this.chatHistory[index].feedback === 'like') {
         this.chatHistory[index].feedback = null; // Toggle to remove like
       } else {
         this.chatHistory[index].feedback = 'like'; // Set like
+      }
+
+      const answer = this.chatHistory[index].feedback === 'like' ? this.chatHistory[index].response : null;
+
+      try {
+        const response = await axios.post(
+          'http://127.0.0.1:5000/handle_feedback',
+          {
+            query: this.chatHistory[index].query,
+            answer: answer,
+          }
+        )
+        if (answer != null) {
+          console.log('Uploaded to VectorDB')
+        } else {
+          console.log('Removed from VectorDB')
+        }
+      } catch (error) {
+        console.error('Error saving query-answer to vectordb:', error)
       }
     },
 
