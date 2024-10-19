@@ -37,6 +37,57 @@ app = Flask(__name__)
 # Allow cross-origin requests (important for frontend communication)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+def generate_output(query):
+    # Anonymize text here
+    print("Query: ", query)
+    anonymized_query = engine.anonymize(query)
+    print("Anonymized_query: ", anonymized_query)
+    
+    docs = retriever.invoke(anonymized_query)
+    print("Length: ", len(docs))
+    print("Docs list: ", docs)
+
+    anonymized_file_text = DEFAULT_DOCUMENT_SEPARATOR.join([format_document(doc, DEFAULT_DOCUMENT_PROMPT) for doc in docs])
+    print("Anonymized file text: ", anonymized_file_text)
+
+    prompt = "Context: {context} \n\n Prompt: {input}".format(context=anonymized_file_text, input=anonymized_query)
+
+    client = Controller(
+        routers=["bert"],
+        strong_model="gemini/gemini-1.5-flash",
+        weak_model="ollama_chat/seeyssimon/bt4103_gguf_finance_v2",
+    )
+
+    messages.append({"role": "user", "content": prompt,})
+
+    response = client.chat.completions.create(
+        model="router-bert-0.5",
+        messages=messages
+    )
+    
+    model_used = response.model
+
+    #print("response: ", response)
+    response = response.choices[0].message.content
+    #print("message: ", response)
+    
+    if response == None:
+        response = "Unable to generate response"
+
+    messages.append({"role":"assistant", "content":response,})
+    print("Messages: ", messages)
+    # Deanonymize text here
+    deanonymized_output = engine.deanonymize(response)
+    print("Deanonymized_output: ", deanonymized_output)
+
+    # Return the result as a JSON response
+    return jsonify({
+        'anonymized_query': anonymized_query,
+        'gemini_output': response,
+        'deanonymized_output': deanonymized_output, 
+        'model_used': model_used
+        })
+
 @app.route('/mainpipeline', methods=['POST'])
 def main_pipeline():
     
@@ -50,6 +101,7 @@ def main_pipeline():
     query = request.form.get('query')
     query = re.sub(r'(\d)\s+(\d)', r'\1\2', query)  # remove gaps in numbers
     query = enhancedEntityResolutionPipeline(query)  # preprocess names
+    print("processed query: ", query)
 
     # Retrieve from vectordb
     response, score = vectordb.query(query, collection_name, "answer")
@@ -68,56 +120,18 @@ def main_pipeline():
         
     # Execute main pipeline if similar query not found
     else:
-        # Anonymize text here
-        print("Query: ", query)
-        anonymized_query = engine.anonymize(query)
-        print("Anonymized_query: ", anonymized_query)
-        
-        docs = retriever.invoke(anonymized_query)
-        print("Length: ", len(docs))
-        print("Docs list: ", docs)
+        LLMresponse = generate_output(query)
+        return LLMresponse
 
-        anonymized_file_text = DEFAULT_DOCUMENT_SEPARATOR.join([format_document(doc, DEFAULT_DOCUMENT_PROMPT) for doc in docs])
-        print("Anonymized file text: ", anonymized_file_text)
+@app.route('/reprocessquery', methods=['POST'])
+def reprocess_query(): # call the function when Vectordb output is irrelevant
+    query = request.form.get('query')
+    query = re.sub(r'(\d)\s+(\d)', r'\1\2', query)  # remove gaps in numbers
+    query = enhancedEntityResolutionPipeline(query)  # preprocess names
+    print("processed query: ", query)
 
-        prompt = "Context: {context} \n\n Prompt: {input}".format(context=anonymized_file_text, input=anonymized_query)
-
-        client = Controller(
-            routers=["bert"],
-            strong_model="gemini/gemini-1.5-flash",
-            weak_model="ollama_chat/seeyssimon/bt4103_gguf_finance_v2",
-        )
-
-        messages.append({"role": "user", "content": prompt,})
-
-        response = client.chat.completions.create(
-            model="router-bert-0.5",
-            messages=messages
-        )
-        
-        model_used = response.model
-
-        #print("response: ", response)
-        response = response.choices[0].message.content
-        #print("message: ", response)
-        
-        if response == None:
-            response = "Unable to generate response"
-
-        messages.append({"role":"assistant", "content":response,})
-        print("Messages: ", messages)
-        # Deanonymize text here
-        deanonymized_output = engine.deanonymize(response)
-        print("Deanonymized_output: ", deanonymized_output)
-
-        # Return the result as a JSON response
-        return jsonify({
-            'anonymized_query': anonymized_query,
-            'gemini_output': response,
-            'deanonymized_output': deanonymized_output, 
-            'model_used': model_used
-            })
-
+    LLMresponse = generate_output(query)
+    return LLMresponse
 
 @app.route('/upload', methods=['POST'])
 def upload_files():

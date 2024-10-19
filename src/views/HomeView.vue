@@ -33,6 +33,15 @@
               <i>You liked this response</i>
             </span>
           </div>
+          <!-- Conditional Component based on query value -->
+          <div v-if="entry.model === 'Vectordb' && index === chatHistory.length - 1">
+            <button @click="handleIrrelevantOutput(index)" :disabled="entry.irrelevant_clicked" class="relevancy-check">
+              Not relevant?
+            </button>
+            <span v-if="isRegenerating" class="liked">
+              <i>Regenerating response...</i>
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -147,6 +156,7 @@ export default {
       isSubmitting: false, // Track loading state for submit button
       isUploading: false, 
       isRemovingFile: false,
+      isRegenerating: false,
     }
   },
   methods: {
@@ -179,25 +189,29 @@ export default {
           }
         );
 
-        // Extract the anonymized query, gemini output, and deanonymized output from the response
-        const anonymizedQuery = anonymizerResponse.data.anonymized_query;
-        const geminiOutput = anonymizerResponse.data.gemini_output;
-        const deanonymizedOutput = anonymizerResponse.data.deanonymized_output;
-        const model = anonymizerResponse.data.model_used; 
+        this.handleOutput(anonymizerResponse)
 
-        // Log anonymized query and gemini output to the console
-        console.log('Anonymized Query:', anonymizedQuery);
-        console.log('Gemini Output:', geminiOutput);
-        console.log('Deanonymized Output: ', deanonymizedOutput)
-        console.log('Model used: ', model)
+        // // Extract the anonymized query, gemini output, and deanonymized output from the response
+        // const anonymizedQuery = anonymizerResponse.data.anonymized_query;
+        // const geminiOutput = anonymizerResponse.data.gemini_output;
+        // const deanonymizedOutput = anonymizerResponse.data.deanonymized_output;
+        // const model = anonymizerResponse.data.model_used; 
 
-        // Add the deanonymized output to the chat history
-        this.chatHistory.push({
-          model: model,
-          query: this.userPrompt,
-          response: deanonymizedOutput, // Only display the deanonymized output
-          feedback: null, // Feedback will be either 'like' or 'dislike'
-        });
+        // // Log anonymized query and gemini output to the console
+        // console.log('Anonymized Query:', anonymizedQuery);
+        // console.log('Gemini Output:', geminiOutput);
+        // console.log('Deanonymized Output: ', deanonymizedOutput)
+        // console.log('Model used: ', model)
+
+        // // Add the deanonymized output to the chat history
+        // this.chatHistory.push({
+        //   model: model,
+        //   query: this.userPrompt,
+        //   response: deanonymizedOutput, // Only display the deanonymized output
+        //   feedback: null, // Feedback will be either 'like' or 'dislike'
+        //   irrelevant: null, // If output is from Vectordb, would allow user to flag out if the output is irrelevant
+        //   irrelevant_clicked: false, // If the user has clicked the irrelevant button
+        // });
 
         // Clear the userPrompt for the next query
         this.userPrompt = '';
@@ -237,6 +251,75 @@ export default {
         }
       } catch (error) {
         console.error('Error saving query-answer to vectordb:', error)
+      }
+    },
+
+    handleOutput(anonymizerResponse) {
+      // Extract the anonymized query, gemini output, and deanonymized output from the response
+      const anonymizedQuery = anonymizerResponse.data.anonymized_query;
+      const geminiOutput = anonymizerResponse.data.gemini_output;
+      const deanonymizedOutput = anonymizerResponse.data.deanonymized_output;
+      const model = anonymizerResponse.data.model_used; 
+
+      // Log anonymized query and gemini output to the console
+      console.log('Anonymized Query:', anonymizedQuery);
+      console.log('Gemini Output:', geminiOutput);
+      console.log('Deanonymized Output: ', deanonymizedOutput)
+      console.log('Model used: ', model)
+
+      // Add the deanonymized output to the chat history
+      this.chatHistory.push({
+        model: model,
+        query: this.userPrompt,
+        response: deanonymizedOutput, // Only display the deanonymized output
+        feedback: null, // Feedback will be either 'like' or 'dislike'
+        irrelevant: null, // If output is from Vectordb, would allow user to flag out if the output is irrelevant
+      });
+    },
+
+    handleIrrelevantOutput(index) {
+      this.chatHistory[index].irrelevant === true
+      this.isRegenerating = true
+      this.regeneratingOutput(index)
+    },
+
+    async regeneratingOutput(index) {
+      if (this.chatHistory[index].irrelevant === null) {
+        this.chatHistory[index].irrelevant === true
+      }
+
+      // regenerate answer from backend
+      this.isSubmitting = true;
+      this.userPrompt = this.chatHistory[index].query;
+
+      const formData = new FormData();
+      formData.append('query', this.userPrompt);
+
+      try {
+        const anonymizerResponse = await axios.post(
+          'http://127.0.0.1:5000/reprocessquery',
+          formData,
+          {
+            headers: {
+              "Content-Type": 'multipart/form-data',
+            }
+          }
+        );
+
+        this.handleOutput(anonymizerResponse)
+
+        // Clear the userPrompt for the next query
+        this.userPrompt = '';
+
+        this.chatHistory.splice(index, 1);
+        this.isRegenerating = false
+        this.$nextTick(() => {
+          this.scrollToBottom();
+        });
+      } catch (error) {
+        console.error('There was an error in getting response:', error);
+      } finally {
+        this.isSubmitting = false;
       }
     },
 
@@ -402,6 +485,11 @@ export default {
 .button-liked {
   background-color:rgb(194, 229, 242)!important;
   border: none;
+}
+
+.relevancy-check {
+  margin-bottom: 10px;
+  margin-right: 10px;
 }
 
 /* Prebuilt Prompts Styling */
