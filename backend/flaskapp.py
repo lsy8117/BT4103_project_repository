@@ -21,6 +21,7 @@ from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv()) # get API keys from .env file
 google_api_key = os.environ.get('GOOGLE_API_KEY')
 vectordb_api_key = os.environ.get('VECTOR_DB_API_KEY')
+openai_api_key = os.environ["OPENAI_API_KEY"] = "sk-XXXXXX"
 from routellm.controller import Controller
 
 engine = AnonymizerEngine()
@@ -88,16 +89,22 @@ def main_pipeline():
             weak_model="ollama_chat/seeyssimon/bt4103_gguf_finance_v2",
         )
 
+        model_mapping = {
+            "gemini/gemini-1.5-flash": "Gemini Model",
+            "ollama_chat/seeyssimon/bt4103_gguf_finance_v2": "Finetuned Phi3.5 mini",
+        }
+
         messages.append({"role": "user", "content": prompt,})
 
         response = client.chat.completions.create(
-            model="router-bert-0.5",
+            model="router-bert-0.6242726147174835",
             messages=messages
         )
         
-        model_used = response.model
+        model_used = model_mapping.get(response.model, response.model)
+        print("model used: ", model_used)
 
-        #print("response: ", response)
+        #print("response: ", response) 
         response = response.choices[0].message.content
         #print("message: ", response)
         
