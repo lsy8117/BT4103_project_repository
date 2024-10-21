@@ -121,7 +121,7 @@ def generate_output(query, origin):
         model_used = "gemini/gemini-1.5-flash"
 
     response = response.choices[0].message.content
-    model_used = model_mapping.get(response.model, response.model)
+    model_used = model_mapping.get(model_used, model_used)
 
     if response == None:
         response = "Unable to generate response"
