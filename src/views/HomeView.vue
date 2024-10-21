@@ -57,6 +57,16 @@
     </div>
 
     <!-- Pre-built Prompts Section -->
+    <div class="restart-container">
+      <b-button class="restart" @click="restartConversation">
+        <span v-if="isClearing">
+          <i class="fa fa-spinner fa-spin"></i> Processing...
+        </span>
+        <span v-else>Restart Conversation</span>
+      </b-button>
+    </div>
+
+    <!-- Pre-built Prompts Section -->
     <div class="prebuilt-prompts">
       <button
         @click="handlePrebuiltPrompt('Generate my quarterly earnings in FY24')"
@@ -168,12 +178,28 @@ export default {
       isUploading: false,
       isRemovingFile: false,
       isRegenerating: false,
+      isClearing: false,
     }
   },
   methods: {
     handlePrebuiltPrompt(prompt) {
       this.userPrompt = prompt
       this.handleSubmit() // Automatically submit the pre-built query
+    },
+
+    async restartConversation() {
+      this.isClearing = true
+
+      try {
+        const response = await axios.post(
+          'http://127.0.0.1:5000/clear_chat_history'
+        )
+        console.log(response)
+      } catch (error) {
+        console.error('Error clearing chat history: ', error)
+      } finally {
+        this.isClearing = false
+      }
     },
 
     async handleSubmit() {
@@ -419,6 +445,47 @@ export default {
   display: flex;
   flex-direction: column;
   white-space: pre-wrap;
+}
+
+.restart-container {
+  display: flex;
+  justify-content: flex-end; /* Aligns children to the right */
+  align-items: center; /* Centers children vertically */
+  width: 100%;
+  padding: 5px 0;
+}
+
+.restart {
+  background-color: initial;
+  background-image: linear-gradient(-180deg, #ff7e31, #e62c03);
+  border-radius: 6px;
+  box-shadow: rgba(0, 0, 0, 0.1) 0 2px 4px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-block;
+  font-family: Inter, -apple-system, system-ui, Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  height: 40px;
+  line-height: 40px;
+  outline: 0;
+  overflow: hidden;
+  padding: 0 20px;
+  pointer-events: auto;
+  position: relative;
+  text-align: center;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  vertical-align: top;
+  white-space: nowrap;
+  width: 25%;
+  z-index: 9;
+  border: 0;
+  transition: box-shadow 0.2s;
+}
+
+.restart:hover {
+  box-shadow: rgba(253, 76, 0, 0.5) 0 3px 8px;
 }
 
 .user-query {

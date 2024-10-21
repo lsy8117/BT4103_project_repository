@@ -6,7 +6,6 @@ from vectordb import Vectordb
 import re
 import io
 import pymupdf
-import google.generativeai as genai
 import os
 from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
@@ -18,6 +17,7 @@ from langchain.chains.combine_documents.base import (
     DEFAULT_DOCUMENT_SEPARATOR,
 )
 from dotenv import load_dotenv, find_dotenv
+from litellm import completion
 
 load_dotenv(find_dotenv())  # get API keys from .env file
 google_api_key = os.environ.get("GOOGLE_API_KEY")
@@ -34,6 +34,25 @@ vector_store = InMemoryVectorStore(
 
 messages = []
 file_id_tracker = {}
+
+safety_settings = [
+    {
+        "category": "HARM_CATEGORY_HARASSMENT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_HATE_SPEECH",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "threshold": "BLOCK_NONE",
+    },
+    {
+        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+        "threshold": "BLOCK_NONE",
+    },
+]
 
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=100, chunk_overlap=20)
 retriever = vector_store.as_retriever()
@@ -84,12 +103,18 @@ def generate_output(query, origin):
         )
         model_used = response.model
         print("response model: ", response.model)
-        response = response.choices[0].message.content
 
     else:  # Only use LLM if regenerating response for incorrect answer from SLM
-        # LLM applied here
-        return
+        os.environ["GEMINI_API_KEY"] = google_api_key
+        response = completion(
+            model="gemini/gemini-1.5-flash",
+            messages=messages,
+            safety_settings=safety_settings,
+        )
+        # print("LLMresponse: ", response)
+        model_used = "gemini/gemini-1.5-flash"
 
+    response = response.choices[0].message.content
     if response == None:
         response = "Unable to generate response"
 
@@ -171,6 +196,13 @@ def main_pipeline():
     # Execute main pipeline if there is existing context or similar query not found
     response = generate_output(query, None)
     return response
+
+
+@app.route("/clear_chat_history", methods=["POST"])
+def clearChatHistory():
+    messages.clear()
+    print("Messages: ", messages)
+    return jsonify({"message": "Conversation history cleared successfully."})
 
 
 @app.route("/reprocessquery", methods=["POST"])
