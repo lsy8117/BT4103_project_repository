@@ -140,6 +140,7 @@ def generate_output(query, origin):
     # Return the result as a JSON response
     return jsonify(
         {
+            "original_query": query,
             "anonymized_query": anonymized_query,
             "gemini_output": response,
             "deanonymized_output": deanonymized_output,
@@ -194,7 +195,8 @@ def main_pipeline():
             # Return the result as a JSON response
             return jsonify(
                 {
-                    "anonymized_query": query,
+                    "original_query": query,
+                    "anonymized_query": anonymized_query,
                     "gemini_output": f"Similar query found in vectordb. Similarity score: {score}",
                     "deanonymized_output": response,
                     "model_used": "Vectordb",

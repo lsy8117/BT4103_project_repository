@@ -188,7 +188,8 @@ export default {
     },
 
     async restartConversation() {
-      this.isClearing = true
+      this.isClearing = true,
+      this.chatHistory = []
 
       try {
         const response = await axios.post(
@@ -285,6 +286,7 @@ export default {
 
     handleOutput(anonymizerResponse) {
       // Extract the anonymized query, gemini output, and deanonymized output from the response
+      const originalQuery = anonymizerResponse.data.original_query 
       const anonymizedQuery = anonymizerResponse.data.anonymized_query
       const geminiOutput = anonymizerResponse.data.gemini_output
       const deanonymizedOutput =
@@ -300,7 +302,7 @@ export default {
       // Add the deanonymized output to the chat history
       this.chatHistory.push({
         model: model,
-        query: this.userPrompt,
+        query: originalQuery,
         response: deanonymizedOutput, // Only display the deanonymized output
         feedback: null, // Feedback will be either 'like' or 'dislike'
       })
@@ -335,7 +337,7 @@ export default {
         // Clear the userPrompt for the next query
         this.userPrompt = ''
 
-        // this.chatHistory.splice(index, 1)
+        this.chatHistory.splice(index, 1)
         this.isRegenerating = false
         this.$nextTick(() => {
           this.scrollToBottom()
