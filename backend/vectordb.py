@@ -61,3 +61,30 @@ class Vectordb:
             print(f"No similar query. Similarty score = {score} < {self.threshold}")
             output = None
         return (output, score)
+    
+    def get_recent_two_queries(self, collection_name):
+        # responses = self.qdrant_client.search(
+        #     collection_name=collection_name,
+        #     query_vector=None,  # Not doing a vector search, only filtering by timestamp
+        #     limit=2,  # Limit to 2 results
+        #     sort=[("timestamp", "desc")],  # Sort by timestamp descending
+        #     with_payload=True  # Include the payload (which includes the timestamp) in the response
+        #     )
+
+        responses = ["适可而止", "Liu Siyi"]
+        
+        if len(responses) == 2:
+            responses = responses # list(map(lambda x: x.payload["query"], responses))
+
+        elif len(responses) == 1:
+            # responses = list(map(lambda x: x.payload["query"], responses))
+            responses.append("Generate my quarterly earnings in FY24")
+        
+        else:
+            responses.append("Generate my quarterly earnings in FY24")
+            responses.append('Provide a breakdown of operating expenses for the latest quarter')
+            
+        return responses
+
+
+

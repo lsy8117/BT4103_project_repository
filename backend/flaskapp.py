@@ -24,6 +24,7 @@ vectordb_api_key = os.environ.get("VECTOR_DB_API_KEY")
 openai_api_key = os.environ["OPENAI_API_KEY"] = "sk-XXXXXX"
 from litellm import completion
 from routellm.controller import Controller
+from datetime import datetime
 
 engine = AnonymizerEngine()
 
@@ -306,6 +307,7 @@ def handle_feedback():
         {
             "query": query,
             "answer": answer,
+            "timestamp": datetime.now()
         }
     ]
     collection_name = "QnA"
@@ -313,6 +315,19 @@ def handle_feedback():
     print("Answer", answer)
     vectordb.upload_docs(collection_name, document, "query")
     return jsonify({"message": "Uploaded query-answer to vectorDB."})
+
+@app.route("/get_recent_two_queries", methods=["POST"])
+def get_recent_two_queries():
+
+    collection_name = "QnA"
+    vectordb = Vectordb(vectordb_api_key)
+    responses = vectordb.get_recent_two_queries(collection_name)
+
+    return jsonify({"query_1": responses[0], "query_2" : responses[1]})
+
+
+
+
 
 
 if __name__ == "__main__":

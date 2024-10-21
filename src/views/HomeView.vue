@@ -69,18 +69,18 @@
     <!-- Pre-built Prompts Section -->
     <div class="prebuilt-prompts">
       <button
-        @click="handlePrebuiltPrompt('Generate my quarterly earnings in FY24')"
+        @click="handlePrebuiltPrompt(this.query_1)"
       >
-        Generate my quarterly earnings in FY24
+        {{query_1}}
       </button>
       <button
         @click="
           handlePrebuiltPrompt(
-            'Provide a breakdown of operating expenses for the latest quarter'
+            this.query_2
           )
         "
       >
-        Provide a breakdown of operating expenses for the latest quarter
+      {{query_2}}
       </button>
       <button
         @click="
@@ -179,12 +179,28 @@ export default {
       isRemovingFile: false,
       isRegenerating: false,
       isClearing: false,
+      query_1 : null,
+      query_2: null,
     }
   },
+
   methods: {
     handlePrebuiltPrompt(prompt) {
       this.userPrompt = prompt
       this.handleSubmit() // Automatically submit the pre-built query
+    },
+
+    async getRecentConvo() {
+      try {
+        const response = await axios.post(
+          'http://127.0.0.1:5000/get_recent_two_queries'
+        )
+        console.log(response)
+        this.query_1 = response.data.query_1
+        this.query_2 = response.data.query_2
+      } catch (error) {
+        console.error('Error retrieving recent queries in VectorDB: ', error)
+      }
     },
 
     async restartConversation() {
@@ -417,6 +433,10 @@ export default {
         this.$refs.fileInput.value = ''
       }
     },
+  },
+
+  mounted() {
+    this.getRecentConvo();
   },
 }
 </script>
