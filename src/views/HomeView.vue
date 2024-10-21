@@ -38,7 +38,7 @@
             v-if="
               (entry.model === 'Vectordb' ||
                 entry.model ===
-                  'ollama_chat/seeyssimon/bt4103_gguf_finance_v2') &&
+                  'Finetuned Phi3.5 mini') &&
               index === chatHistory.length - 1
             "
           >

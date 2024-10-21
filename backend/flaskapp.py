@@ -55,6 +55,11 @@ safety_settings = [
     },
 ]
 
+model_mapping = {
+            "gemini/gemini-1.5-flash": "Gemini Model",
+            "ollama_chat/seeyssimon/bt4103_gguf_finance_v2": "Finetuned Phi3.5 mini",
+        }
+
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=100, chunk_overlap=20)
 retriever = vector_store.as_retriever()
 
@@ -100,7 +105,7 @@ def generate_output(query, origin):
         )
 
         response = client.chat.completions.create(
-            model="router-bert-0.5", messages=messages
+            model="router-bert-0.6242726147174835", messages=messages
         )
         model_used = response.model
         print("response model: ", response.model)
@@ -116,6 +121,8 @@ def generate_output(query, origin):
         model_used = "gemini/gemini-1.5-flash"
 
     response = response.choices[0].message.content
+    model_used = model_mapping.get(response.model, response.model)
+
     if response == None:
         response = "Unable to generate response"
 
