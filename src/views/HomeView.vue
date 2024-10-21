@@ -19,12 +19,12 @@
         <!-- Response (Left) -->
         <div v-if="entry.response" class="response">
           <!-- Display the model used for this response -->
-          <p>[{{ entry.model }}]</p>
-          <p>{{ entry.response }}</p>
+          <p style="margin: 2% 0 0 0">[{{ entry.model }}]</p>
+          <p style="margin: 3% 0 0 0">{{ entry.response }}</p>
           <!-- Like/Dislike buttons -->
           <div class="feedback-buttons">
-            <button 
-              :class="{ 'button-liked': entry.feedback === 'like' }" 
+            <button
+              :class="{ 'button-liked': entry.feedback === 'like' }"
               @click="handleFeedback(index)"
             >
               <font-awesome-icon :icon="['fas', 'thumbs-up']" />
@@ -33,8 +33,37 @@
               <i>You liked this response</i>
             </span>
           </div>
+          <!-- Conditional Component based on query value -->
+          <div
+            v-if="
+              (entry.model === 'Vectordb' ||
+                entry.model ===
+                  'ollama_chat/seeyssimon/bt4103_gguf_finance_v2') &&
+              index === chatHistory.length - 1
+            "
+          >
+            <button
+              @click="handleIrrelevantOutput(index)"
+              class="relevancy-check"
+            >
+              Not relevant?
+            </button>
+            <span v-if="isRegenerating" class="liked">
+              <i>Regenerating response...</i>
+            </span>
+          </div>
         </div>
       </div>
+    </div>
+
+    <!-- Pre-built Prompts Section -->
+    <div class="restart-container">
+      <b-button class="restart" @click="restartConversation">
+        <span v-if="isClearing">
+          <i class="fa fa-spinner fa-spin"></i> Processing...
+        </span>
+        <span v-else>Restart Conversation</span>
+      </b-button>
     </div>
 
     <!-- Pre-built Prompts Section -->
@@ -118,7 +147,8 @@
             <button type="submit" class="submit-button">Submit</button>
           </template>
           <template v-else>
-            <div class="spinner"></div> <!-- Spinner for submit button -->
+            <div class="spinner"></div>
+            <!-- Spinner for submit button -->
           </template>
         </div>
       </div>
@@ -142,11 +172,13 @@ export default {
     return {
       userPrompt: '', // to store user input or pre-built prompt
       chatHistory: [], // to store chat history with queries and responses
-      uploadedFiles: [], // to store the single uploaded file
+      uploadedFiles: [], // to store the uploaded files
       model: '',
       isSubmitting: false, // Track loading state for submit button
-      isUploading: false, 
+      isUploading: false,
       isRemovingFile: false,
+      isRegenerating: false,
+      isClearing: false,
     }
   },
   methods: {
@@ -155,17 +187,32 @@ export default {
       this.handleSubmit() // Automatically submit the pre-built query
     },
 
+    async restartConversation() {
+      this.isClearing = true
+
+      try {
+        const response = await axios.post(
+          'http://127.0.0.1:5000/clear_chat_history'
+        )
+        console.log(response)
+      } catch (error) {
+        console.error('Error clearing chat history: ', error)
+      } finally {
+        this.isClearing = false
+      }
+    },
+
     async handleSubmit() {
       if (this.userPrompt.trim() === '') {
-        alert('Please enter a valid query.');
-        return;
+        alert('Please enter a valid query.')
+        return
       }
 
-      this.isSubmitting = true;
+      this.isSubmitting = true
 
       // Handle file along with the user query (if any file is uploaded)
-      const formData = new FormData();
-      formData.append('query', this.userPrompt); // Sending the query
+      const formData = new FormData()
+      formData.append('query', this.userPrompt) // Sending the query
 
       try {
         // Sending the text to the Flask backend
@@ -177,66 +224,126 @@ export default {
               'Content-Type': 'multipart/form-data',
             },
           }
-        );
+        )
 
-        // Extract the anonymized query, gemini output, and deanonymized output from the response
-        const anonymizedQuery = anonymizerResponse.data.anonymized_query;
-        const geminiOutput = anonymizerResponse.data.gemini_output;
-        const deanonymizedOutput = anonymizerResponse.data.deanonymized_output;
-        const model = anonymizerResponse.data.model_used; 
-
-        // Log anonymized query and gemini output to the console
-        console.log('Anonymized Query:', anonymizedQuery);
-        console.log('Gemini Output:', geminiOutput);
-        console.log('Deanonymized Output: ', deanonymizedOutput)
-        console.log('Model used: ', model)
-
-        // Add the deanonymized output to the chat history
-        this.chatHistory.push({
-          model: model,
-          query: this.userPrompt,
-          response: deanonymizedOutput, // Only display the deanonymized output
-          feedback: null, // Feedback will be either 'like' or 'dislike'
-        });
+        this.handleOutput(anonymizerResponse)
 
         // Clear the userPrompt for the next query
-        this.userPrompt = '';
+        this.userPrompt = ''
 
         // Ensure the chat scrolls to the bottom
         this.$nextTick(() => {
-          this.scrollToBottom();
-        });
+          this.scrollToBottom()
+        })
       } catch (error) {
-        console.error('There was an error in getting response:', error);
+        console.error('There was an error in getting response:', error)
       } finally {
-        this.isSubmitting = false;
+        this.isSubmitting = false
       }
     },
 
     async handleFeedback(index) {
-      if (this.chatHistory[index].feedback === 'like') {
-        this.chatHistory[index].feedback = null; // Toggle to remove like
+      if (this.chatHistory[index].model === 'Vectordb') {
+        alert('Cannot save similar queries')
+        return
+      } else if (
+        this.chatHistory.length !== 1 ||
+        this.uploadedFiles.length !== 0
+      ) {
+        alert('Cannot save contextual query')
+        return
       } else {
-        this.chatHistory[index].feedback = 'like'; // Set like
-      }
+        if (this.chatHistory[index].feedback === 'like') {
+          this.chatHistory[index].feedback = null // Toggle to remove like
+        } else {
+          this.chatHistory[index].feedback = 'like' // Set like
+        }
 
-      const answer = this.chatHistory[index].feedback === 'like' ? this.chatHistory[index].response : null;
+        const answer =
+          this.chatHistory[index].feedback === 'like'
+            ? this.chatHistory[index].response
+            : null
+
+        try {
+          const response = await axios.post(
+            'http://127.0.0.1:5000/handle_feedback',
+            {
+              query: this.chatHistory[index].query,
+              answer: answer,
+            }
+          )
+          if (answer != null) {
+            console.log('Uploaded to VectorDB')
+          } else {
+            console.log('Removed from VectorDB')
+          }
+        } catch (error) {
+          console.error('Error saving query-answer to vectordb:', error)
+        }
+      }
+    },
+
+    handleOutput(anonymizerResponse) {
+      // Extract the anonymized query, gemini output, and deanonymized output from the response
+      const anonymizedQuery = anonymizerResponse.data.anonymized_query
+      const geminiOutput = anonymizerResponse.data.gemini_output
+      const deanonymizedOutput =
+        anonymizerResponse.data.deanonymized_output.trimStart()
+      const model = anonymizerResponse.data.model_used
+
+      // Log anonymized query and gemini output to the console
+      console.log('Anonymized Query:', anonymizedQuery)
+      console.log('Gemini Output:', geminiOutput)
+      console.log('Deanonymized Output: ', deanonymizedOutput)
+      console.log('Model used: ', model)
+
+      // Add the deanonymized output to the chat history
+      this.chatHistory.push({
+        model: model,
+        query: this.userPrompt,
+        response: deanonymizedOutput, // Only display the deanonymized output
+        feedback: null, // Feedback will be either 'like' or 'dislike'
+      })
+    },
+
+    handleIrrelevantOutput(index) {
+      this.isRegenerating = true
+      this.regeneratingOutput(index)
+    },
+
+    async regeneratingOutput(index) {
+      // regenerate answer from backend
+      this.isSubmitting = true
+
+      const formData = new FormData()
+      formData.append('query', this.chatHistory[index].query)
+      formData.append('origin', this.chatHistory[index].model)
 
       try {
-        const response = await axios.post(
-          'http://127.0.0.1:5000/handle_feedback',
+        const anonymizerResponse = await axios.post(
+          'http://127.0.0.1:5000/reprocessquery',
+          formData,
           {
-            query: this.chatHistory[index].query,
-            answer: answer,
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
           }
         )
-        if (answer != null) {
-          console.log('Uploaded to VectorDB')
-        } else {
-          console.log('Removed from VectorDB')
-        }
+
+        this.handleOutput(anonymizerResponse)
+
+        // Clear the userPrompt for the next query
+        this.userPrompt = ''
+
+        // this.chatHistory.splice(index, 1)
+        this.isRegenerating = false
+        this.$nextTick(() => {
+          this.scrollToBottom()
+        })
       } catch (error) {
-        console.error('Error saving query-answer to vectordb:', error)
+        console.error('There was an error in getting response:', error)
+      } finally {
+        this.isSubmitting = false
       }
     },
 
@@ -252,7 +359,7 @@ export default {
       )
 
       if (newFiles.length > 0) {
-        this.isUploading = true;
+        this.isUploading = true
         newFiles.forEach(async (file) => {
           if (file.type === 'application/pdf') {
             // Prepare the form data
@@ -275,7 +382,7 @@ export default {
               console.error('Error uploading file:', error)
               alert('There was an error uploading the file.')
             } finally {
-              this.isUploading = false;
+              this.isUploading = false
             }
           } else {
             alert('Please upload a valid PDF file.')
@@ -285,7 +392,7 @@ export default {
     },
 
     async removeFile(fileToRemove) {
-      this.isRemovingFile = true;
+      this.isRemovingFile = true
       try {
         // Send request to backend to clear the anonymized text
         const removeResponse = await axios.post(
@@ -301,7 +408,7 @@ export default {
       } catch (error) {
         console.error('Error clearing anonymized file text:', error)
       } finally {
-        this.isRemovingFile = false;
+        this.isRemovingFile = false
       }
       // Reset the input element to allow re-uploading the same file
       if (this.$refs.fileInput) {
@@ -340,6 +447,47 @@ export default {
   white-space: pre-wrap;
 }
 
+.restart-container {
+  display: flex;
+  justify-content: flex-end; /* Aligns children to the right */
+  align-items: center; /* Centers children vertically */
+  width: 100%;
+  padding: 5px 0;
+}
+
+.restart {
+  background-color: initial;
+  background-image: linear-gradient(-180deg, #ff7e31, #e62c03);
+  border-radius: 6px;
+  box-shadow: rgba(0, 0, 0, 0.1) 0 2px 4px;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-block;
+  font-family: Inter, -apple-system, system-ui, Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  height: 40px;
+  line-height: 40px;
+  outline: 0;
+  overflow: hidden;
+  padding: 0 20px;
+  pointer-events: auto;
+  position: relative;
+  text-align: center;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  vertical-align: top;
+  white-space: nowrap;
+  width: 25%;
+  z-index: 9;
+  border: 0;
+  transition: box-shadow 0.2s;
+}
+
+.restart:hover {
+  box-shadow: rgba(253, 76, 0, 0.5) 0 3px 8px;
+}
+
 .user-query {
   align-self: flex-end;
   background-color: rgb(246, 229, 209);
@@ -357,8 +505,8 @@ export default {
 .response {
   align-self: flex-start;
   background-color: #f1f1f1;
-  padding: 0px 20px;
-  margin: 10px 0px;
+  padding: 10px 20px;
+  margin: 10px 0px 10px;
   border-radius: 10px;
   font-family: 'Montserrat', sans-serif;
   max-width: 60%;
@@ -400,8 +548,41 @@ export default {
 }
 
 .button-liked {
-  background-color:rgb(194, 229, 242)!important;
+  background-color: rgb(194, 229, 242) !important;
   border: none;
+}
+
+.relevancy-check {
+  background-color: #fff;
+  border: 1px solid #d5d9d9;
+  border-radius: 8px;
+  box-shadow: rgba(213, 217, 217, 0.5) 0 2px 5px 0;
+  box-sizing: border-box;
+  color: #0f1111;
+  cursor: pointer;
+  display: inline-block;
+  font-family: 'Amazon Ember', sans-serif;
+  font-size: 12px;
+  line-height: 29px;
+  padding: 0 10px 0 11px;
+  position: relative;
+  text-align: center;
+  text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  vertical-align: middle;
+  width: 100px;
+}
+
+.relevancy-check:hover {
+  background-color: #f7fafa;
+}
+
+.relevancy-check:focus {
+  border-color: #008296;
+  box-shadow: rgba(213, 217, 217, 0.5) 0 2px 5px 0;
+  outline: 0;
 }
 
 /* Prebuilt Prompts Styling */
@@ -529,7 +710,7 @@ export default {
 }
 
 .spinner {
-  border: 4px solid #f3f3f3; 
+  border: 4px solid #f3f3f3;
   border-top: 4px solid #de9534;
   border-radius: 50%;
   width: 20px;
@@ -538,8 +719,11 @@ export default {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
-
 </style>
