@@ -90,7 +90,7 @@ class Vectordb:
                 collection_name="QnA",
                 with_payload=True,
                 with_vectors=False,
-                order_by="date",
+                order_by=models.OrderBy(key="date", direction="desc"),
                 limit=self.num_prebuilt_queries
                 )[0]
         recent_queries = [x.payload['query'] for x in recent_queries]
