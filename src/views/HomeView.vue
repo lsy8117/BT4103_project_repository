@@ -74,31 +74,19 @@
         {{query_1}}
       </button>
       <button
-        @click="
-          handlePrebuiltPrompt(
-            this.query_2
-          )
-        "
+        @click="handlePrebuiltPrompt(this.query_2)"
       >
-      {{query_2}}
+        {{query_2}}
       </button>
       <button
-        @click="
-          handlePrebuiltPrompt(
-            'List the top-performing revenue streams in FY24'
-          )
-        "
+        @click="handlePrebuiltPrompt(this.query_3)"
       >
-        List the top-performing revenue streams in FY24
+        {{query_3}}
       </button>
       <button
-        @click="
-          handlePrebuiltPrompt(
-            'Show a breakdown of administrative expenses for FY24'
-          )
-        "
+        @click="handlePrebuiltPrompt(this.query_4)"
       >
-        Show a breakdown of administrative expenses for FY24
+        {{query_4}}
       </button>
     </div>
 
@@ -181,6 +169,8 @@ export default {
       isClearing: false,
       query_1 : null,
       query_2: null,
+      query_3 : null,
+      query_4: null,
     }
   },
 
@@ -193,11 +183,13 @@ export default {
     async getRecentConvo() {
       try {
         const response = await axios.post(
-          'http://127.0.0.1:5000/get_recent_two_queries'
+          'http://127.0.0.1:5000/get_recent_queries'
         )
         console.log(response)
         this.query_1 = response.data.query_1
         this.query_2 = response.data.query_2
+        this.query_3 = response.data.query_3
+        this.query_4 = response.data.query_4
       } catch (error) {
         console.error('Error retrieving recent queries in VectorDB: ', error)
       }
@@ -434,7 +426,7 @@ export default {
       }
     },
   },
-
+  
   mounted() {
     this.getRecentConvo();
   },
