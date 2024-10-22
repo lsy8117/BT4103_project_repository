@@ -1,6 +1,6 @@
 from qdrant_client import QdrantClient, models
 from sentence_transformers import SentenceTransformer
-import datetime
+import math
 
 import os
 from dotenv import load_dotenv, find_dotenv
@@ -10,6 +10,7 @@ vector_db_url = os.environ.get("VECTOR_DB_URL")
 class Vectordb:
     def __init__(self, api_key):
         self.threshold = 0 # Between 0 and 1. Only queries that have score > threshold will be returned
+        self.n = 4
         self.encoder = SentenceTransformer("all-MiniLM-L6-v2")
         self.qdrant_client = QdrantClient(
             url=vector_db_url,
@@ -48,8 +49,12 @@ class Vectordb:
     def query(self, prompt, collection_name, output_col):
         # Filter outputs by threshold (score > threshold), and sorts the filtered output by date (most recent)
         def filter_and_sort_outputs(hits):
-            final_hits = list(filter(lambda x: x.score > self.threshold, hits))
-            final_hits.sort(key=lambda x: x.payload['date'], reverse=True)
+            final_hits = list(filter(lambda x: float(x.score) > self.threshold, hits)) # Filter by threshold
+            if final_hits:
+                max_score = round(max(hit.score for hit in hits),4)
+                max_score = math.floor(max_score * 100)/100.0
+                final_hits = list(filter(lambda x: float(x.score) > max_score, hits)) # Get queries with highest score (could be more than one)
+                final_hits.sort(key=lambda x: x.payload['date'], reverse=True) # Get most recent highest scoring query
             return final_hits
 
         hits = self.qdrant_client.query_points(
@@ -70,3 +75,23 @@ class Vectordb:
             output = final_hits[0].payload[output_col]
             score = round(hits[0].score, 2)
         return (output, score)
+
+    def get_recent_queries(self, n):
+        # Sets the vector db to allow sorting
+        def allow_query_sorting():
+            self.qdrant_client.create_payload_index(
+                collection_name="QnA",
+                field_name="date",
+                field_schema="datetime",
+            )
+            return None
+        allow_query_sorting()
+        recent_queries = self.qdrant_client.scroll(
+                collection_name="QnA",
+                with_payload=True,
+                with_vectors=False,
+                order_by="date",
+                limit=n
+                )[0]
+        recent_queries = [x.payload['query'] for x in recent_queries]
+        return recent_queries
