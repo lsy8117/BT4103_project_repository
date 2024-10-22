@@ -2,13 +2,17 @@ from qdrant_client import QdrantClient, models
 from sentence_transformers import SentenceTransformer
 import datetime
 
+import os
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())  # get API keys from .env file
+vector_db_url = os.environ.get("VECTOR_DB_URL")
 
 class Vectordb:
     def __init__(self, api_key):
-        self.threshold = 1
+        self.threshold = 0 # Between 0 and 1. Only queries that have score > threshold will be returned
         self.encoder = SentenceTransformer("all-MiniLM-L6-v2")
         self.qdrant_client = QdrantClient(
-            url="https://4911e305-90e1-4135-a023-39320bdb1588.europe-west3-0.gcp.cloud.qdrant.io:6333",
+            url=vector_db_url,
             api_key=api_key,
         )
 
@@ -42,22 +46,27 @@ class Vectordb:
         )
 
     def query(self, prompt, collection_name, output_col):
+        # Filter outputs by threshold (score > threshold), and sorts the filtered output by date (most recent)
+        def filter_and_sort_outputs(hits):
+            final_hits = list(filter(lambda x: x.score > self.threshold, hits))
+            final_hits.sort(key=lambda x: x.payload['date'], reverse=True)
+            return final_hits
+
         hits = self.qdrant_client.query_points(
             collection_name=collection_name,
             query=self.encoder.encode(prompt).tolist(),
             query_filter=models.Filter(
                 # must=[models.FieldCondition(key="date", range=models.DatetimeRange(gte=datetime.datetime(2018, 6, 1)))]
             ),
-            limit=1,
+            limit=5, # Allow multiple outputs to filter by similarity score and sort by date
         ).points
-        ## For multiple similar outputs
-        # for hit in hits:
-        #     print(hit.payload[output_col], "score:", hit.score)
-
-        ## For most relevant output
-        output = hits[0].payload[output_col]
-        score = round(hits[0].score, 2)
-        if score < self.threshold:
-            print(f"No similar query. Similarty score = {score} < {self.threshold}")
+        # Get filtered and sorted outputs
+        final_hits = filter_and_sort_outputs(hits)
+        if not final_hits:
+            print(f"No similar query found in vectordb...")
             output = None
+            score = 0
+        else:
+            output = final_hits[0].payload[output_col]
+            score = round(hits[0].score, 2)
         return (output, score)

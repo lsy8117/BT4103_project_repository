@@ -16,12 +16,13 @@ from langchain.chains.combine_documents.base import (
     DEFAULT_DOCUMENT_PROMPT,
     DEFAULT_DOCUMENT_SEPARATOR,
 )
-from dotenv import load_dotenv, find_dotenv
+from datetime import datetime
 
+from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())  # get API keys from .env file
 google_api_key = os.environ.get("GOOGLE_API_KEY")
 vectordb_api_key = os.environ.get("VECTOR_DB_API_KEY")
-openai_api_key = os.environ["OPENAI_API_KEY"] = "sk-XXXXXX"
+openai_api_key = os.environ["OPENAI_API_KEY"]
 from litellm import completion
 from routellm.controller import Controller
 
@@ -306,6 +307,7 @@ def handle_feedback():
         {
             "query": query,
             "answer": answer,
+            "date": datetime.now()
         }
     ]
     collection_name = "QnA"
