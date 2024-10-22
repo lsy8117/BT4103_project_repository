@@ -16,12 +16,13 @@ from langchain.chains.combine_documents.base import (
     DEFAULT_DOCUMENT_PROMPT,
     DEFAULT_DOCUMENT_SEPARATOR,
 )
-from dotenv import load_dotenv, find_dotenv
+from datetime import datetime
 
+from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())  # get API keys from .env file
 google_api_key = os.environ.get("GOOGLE_API_KEY")
 vectordb_api_key = os.environ.get("VECTOR_DB_API_KEY")
-openai_api_key = os.environ["OPENAI_API_KEY"] = "sk-XXXXXX"
+openai_api_key = os.environ["OPENAI_API_KEY"]
 from litellm import completion
 from routellm.controller import Controller
 from datetime import datetime
@@ -157,6 +158,7 @@ def main_pipeline():
     collection_name = "QnA"
     vectordb = Vectordb(vectordb_api_key)
     vectordb.set_threshold(0.8)
+    print(f"Most recent prebuilt queries: {vectordb.get_recent_queries(4)}")
     # vectordb.create_collection(collection_name)
 
     # Query
@@ -307,7 +309,7 @@ def handle_feedback():
         {
             "query": query,
             "answer": answer,
-            "timestamp": datetime.now()
+            "date": datetime.now()
         }
     ]
     collection_name = "QnA"
@@ -316,19 +318,20 @@ def handle_feedback():
     vectordb.upload_docs(collection_name, document, "query")
     return jsonify({"message": "Uploaded query-answer to vectorDB."})
 
-@app.route("/get_recent_two_queries", methods=["POST"])
+@app.route("/get_recent_queries", methods=["POST"])
 def get_recent_two_queries():
-
     collection_name = "QnA"
     vectordb = Vectordb(vectordb_api_key)
-    responses = vectordb.get_recent_two_queries(collection_name)
+    recent_queries = vectordb.get_recent_queries(4)
 
-    return jsonify({"query_1": responses[0], "query_2" : responses[1]})
-
-
-
-
-
+    return jsonify(
+      {
+      "query_1": recent_queries[0],
+      "query_2" : recent_queries[1],
+      "query_3" : recent_queries[2],
+      "query_4" : recent_queries[3],
+     }
+    )
 
 if __name__ == "__main__":
     app.run(debug=True, use_reloader=False)
