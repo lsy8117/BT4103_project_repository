@@ -10,7 +10,6 @@ vector_db_url = os.environ.get("VECTOR_DB_URL")
 class Vectordb:
     def __init__(self, api_key):
         self.threshold = 0 # Between 0 and 1. Only queries that have score > threshold will be returned
-        self.num_prebuilt_queries = 4
         self.encoder = SentenceTransformer("all-MiniLM-L6-v2")
         self.qdrant_client = QdrantClient(
             url=vector_db_url,
@@ -76,7 +75,7 @@ class Vectordb:
             score = round(hits[0].score, 2)
         return (output, score)
 
-    def get_recent_queries(self):
+    def get_recent_queries(self, num_prebuilt_queries):
         # Sets the vector db to allow sorting
         def allow_query_sorting():
             self.qdrant_client.create_payload_index(
@@ -91,7 +90,7 @@ class Vectordb:
                 with_payload=True,
                 with_vectors=False,
                 order_by=models.OrderBy(key="date", direction="desc"),
-                limit=self.num_prebuilt_queries
+                limit=num_prebuilt_queries
                 )[0]
         recent_queries = [x.payload['query'] for x in recent_queries]
         return recent_queries
