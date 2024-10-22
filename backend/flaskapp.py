@@ -319,11 +319,10 @@ def handle_feedback():
     return jsonify({"message": "Uploaded query-answer to vectorDB."})
 
 @app.route("/get_recent_queries", methods=["POST"])
-def get_recent_two_queries():
-    collection_name = "QnA"
+def get_recent_queries():
     vectordb = Vectordb(vectordb_api_key)
     recent_queries = vectordb.get_recent_queries(4)
-
+    print(f"Recent queries: {recent_queries}")
     return jsonify(
       {
       "query_1": recent_queries[0],
@@ -332,6 +331,7 @@ def get_recent_two_queries():
       "query_4" : recent_queries[3],
      }
     )
+
 
 if __name__ == "__main__":
     app.run(debug=True, use_reloader=False)
