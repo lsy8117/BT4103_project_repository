@@ -2,6 +2,7 @@ from qdrant_client import QdrantClient, models
 from sentence_transformers import SentenceTransformer
 import math
 import datetime
+import random
 
 import os
 from dotenv import load_dotenv, find_dotenv
@@ -38,7 +39,7 @@ class Vectordb:
             collection_name=collection_name,
             points=[
                 models.PointStruct(
-                    id = int(str(idx) + datetime.datetime.now().strftime("%Y%m%d%H%M%S")),
+                    id = int(str(random.randint(0, 1000)) + datetime.datetime.now().strftime("%Y%m%d%H%M%S")),
                     vector=self.encoder.encode(doc[input_col]).tolist(),
                     payload=doc,
                 )
