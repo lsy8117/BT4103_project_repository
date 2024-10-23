@@ -1,6 +1,8 @@
 from qdrant_client import QdrantClient, models
 from sentence_transformers import SentenceTransformer
 import math
+import datetime
+import random
 
 import os
 from dotenv import load_dotenv, find_dotenv
@@ -37,7 +39,7 @@ class Vectordb:
             collection_name=collection_name,
             points=[
                 models.PointStruct(
-                    id=idx,
+                    id = int(str(random.randint(0, 1000)) + datetime.datetime.now().strftime("%Y%m%d%H%M%S")),
                     vector=self.encoder.encode(doc[input_col]).tolist(),
                     payload=doc,
                 )
@@ -68,6 +70,7 @@ class Vectordb:
         print(f"Hits:\n{hits}")
         # Get filtered and sorted outputs
         final_hits = filter_and_sort_outputs(hits)
+        # final_hits = hits
         print(f"Final hits:\n{final_hits}")
         if not final_hits:
             print(f"No similar query found in vectordb...")
