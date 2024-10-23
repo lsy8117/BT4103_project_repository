@@ -7,6 +7,7 @@ import re
 import io
 import pymupdf
 import os
+import pandas as pd
 from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -18,14 +19,19 @@ from langchain.chains.combine_documents.base import (
 )
 from datetime import datetime
 
-from dotenv import load_dotenv, find_dotenv
-load_dotenv(find_dotenv())  # get API keys from .env file
-google_api_key = os.environ.get("GOOGLE_API_KEY")
-vectordb_api_key = os.environ.get("VECTOR_DB_API_KEY")
-openai_api_key = os.environ["OPENAI_API_KEY"]
 from litellm import completion
 from routellm.controller import Controller
 from datetime import datetime
+from docx import Document as MSDocument
+
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv())  # get API keys from .env file
+
+google_api_key = os.environ.get("GOOGLE_API_KEY")
+vectordb_api_key = os.environ.get("VECTOR_DB_API_KEY")
+openai_api_key = os.environ["OPENAI_API_KEY"]
+router_threshold = os.environ["ROUTER_THRESHOLD"]
+router = os.environ["ROUTER_MODEL"]
 
 os.system("ollama pull seeyssimon/bt4103_gguf_finance_v2")
 
@@ -109,7 +115,7 @@ def generate_output(query, origin):
         )
 
         response = client.chat.completions.create(
-            model="router-bert-0.6242726147174835", messages=messages
+            model=f"router-{router}-{router_threshold}", messages=messages
         )
         model_used = response.model
         print("response model: ", response.model)
@@ -239,36 +245,68 @@ def upload_files():
     for file in files:
         file_name = file.filename
         file_content = file.read()
+        file_extension = file_name.split(".")[-1].lower()
+        print("file extension: ", file_extension)
         page_number = 0
         lst_docs = []
         file_id_tracker[file_name] = []
 
-        with io.BytesIO(file_content) as pdf_file:
-            pdf_document = pymupdf.open(stream=pdf_file, filetype="pdf")
-            anonymized_text = ""
+        if file_extension == "pdf":
+            with io.BytesIO(file_content) as pdf_file:
+                pdf_document = pymupdf.open(stream=pdf_file, filetype="pdf")
+                anonymized_text = ""
 
-            for page in pdf_document:
-                metadata = {}
-                metadata["source"] = file_name
-                metadata["page"] = page_number
+                for page in pdf_document:
+                    metadata = {}
+                    metadata["source"] = file_name
+                    metadata["page"] = page_number
 
-                text = page.get_text("text")
-                # text = re.sub(r'(\d)\s+(\d)', r'\1\2', text)  # computationally expensive, especially for large files.
-                text = enhancedEntityResolutionPipeline(text)
-                anonymized_text = engine.anonymize(text)
+                    text = page.get_text("text")
+                    # text = re.sub(r'(\d)\s+(\d)', r'\1\2', text)  # computationally expensive, especially for large files.
+                    text = enhancedEntityResolutionPipeline(text)
+                    anonymized_text = engine.anonymize(text)
 
-                page_number += 1
+                    page_number += 1
 
-                doc = Document(metadata=metadata, page_content=anonymized_text)
+                    doc = Document(metadata=metadata, page_content=anonymized_text)
 
-                lst_docs.append(doc)
+                    lst_docs.append(doc)
+                lst_docs = text_splitter.split_documents(lst_docs)
 
-            splits = text_splitter.split_documents(lst_docs)
+        elif file_extension == "csv":
+            with io.StringIO(file_content.decode('utf-8')) as csv_file:
+                df = pd.read_csv(csv_file)
+                print("df: ", df)
+                headers = df.columns.values
+                for index, row in df.iterrows(): 
+                    content = ''
+                    for header in headers: 
+                        content += f"{header}: {row[header]}\n"
+                    docs = [Document(page_content=content, metadata={"source": file_name, "row": index})]
+                    
+                    for doc in docs:
+                        doc.metadata["source"] = file_name
+                        doc.page_content = engine.anonymize(enhancedEntityResolutionPipeline(doc.page_content))
+                        lst_docs.append(doc)
 
-            lst_ids = vector_store.add_documents(splits)
-            file_id_tracker[file_name].extend(lst_ids)
+        elif file_extension == "docx":
+            with io.BytesIO(file_content) as docx_file:
+                ms_document = MSDocument(docx_file)
+                print("ms doc: ", ms_document)
+                full_text = []
+                for paragraph in ms_document.paragraphs:
+                    full_text.append(paragraph.text)
+                print("full text: ", full_text)
+            full_doc = "\n".join(full_text)
+            print("full_doc: ", full_doc)
+            doc = Document(page_content=engine.anonymize(enhancedEntityResolutionPipeline(full_doc)) , metadata={"source": file_name})
+            lst_docs = [doc]
+            lst_docs = text_splitter.split_documents(lst_docs)
+                    
+        lst_ids = vector_store.add_documents(lst_docs)
+        file_id_tracker[file_name].extend(lst_ids)
 
-            print(f"Processed and anonymized: {file_name}")
+        print(f"Processed and anonymized: {file_name}")
     # print(anonymized_file_text)
     return jsonify(
         {"message": f"{len(files)} file(s) uploaded and processed successfully."}
