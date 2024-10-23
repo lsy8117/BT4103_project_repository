@@ -4,6 +4,7 @@ from collections import defaultdict
 import re
 from transformers import logging # suppress warnings
 logging.set_verbosity_error()  # suppress warnings
+import string
 
 # Load the tokenizer and model from the same family
 tokenizer = AutoTokenizer.from_pretrained(
@@ -19,8 +20,13 @@ current_unique_names = set()
 current_canonical_names = set()
 
 def enhancedEntityResolutionPipeline(text):
+    def is_last_char_punctuation(text):
+        if text and text[-1] in string.punctuation:
+            return True
+        return False
+
     # Check if the text ends with a period, because if the name appears as the last word of the sentence but without a period, the NER won't recognize it as a name.
-    if not text.endswith('.'):
+    if not is_last_char_punctuation(text):
         text += '.'
         
     # Step 1: Extract and recombine names

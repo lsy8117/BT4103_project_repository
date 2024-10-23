@@ -158,7 +158,6 @@ def main_pipeline():
     collection_name = "QnA"
     vectordb = Vectordb(vectordb_api_key)
     vectordb.set_threshold(0.8)
-    print(f"Most recent prebuilt queries: {vectordb.get_recent_queries(4)}")
     # vectordb.create_collection(collection_name)
 
     # Query
