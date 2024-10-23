@@ -27,6 +27,8 @@ from litellm import completion
 from routellm.controller import Controller
 from datetime import datetime
 
+os.system("ollama pull seeyssimon/bt4103_gguf_finance_v2")
+
 engine = AnonymizerEngine()
 
 vector_store = InMemoryVectorStore(
