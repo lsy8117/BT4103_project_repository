@@ -126,7 +126,7 @@
               ref="fileInput"
               @change="handleFileUpload"
               multiple
-              accept="application/pdf"
+              accept="application/pdf,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               class="file-input"
             />
             <div v-if="isUploading" class="spinner"></div>
@@ -363,43 +363,48 @@ export default {
     },
 
     async handleFileUpload(event) {
-      const newFiles = Array.from(event.target.files).filter(
-        (f) =>
-          this.uploadedFiles.map((file) => file.name).indexOf(f.name) === -1
-      )
+  const newFiles = Array.from(event.target.files).filter(
+    (f) => this.uploadedFiles.map((file) => file.name).indexOf(f.name) === -1
+  );
 
-      if (newFiles.length > 0) {
-        this.isUploading = true
-        newFiles.forEach(async (file) => {
-          if (file.type === 'application/pdf') {
-            // Prepare the form data
-            const formData = new FormData()
-            formData.append('file', file)
+  if (newFiles.length > 0) {
+    this.isUploading = true;
+    newFiles.forEach(async (file) => {
+      const allowedTypes = [
+        'application/pdf',
+        'text/csv',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ];
 
-            try {
-              // Send the file to the Flask backend
-              const uploadResponse = await axios.post(
-                'http://127.0.0.1:5000/upload',
-                formData,
-                {
-                  headers: {
-                    'Content-Type': 'multipart/form-data',
-                  },
-                }
-              )
-              this.uploadedFiles.push(file)
-            } catch (error) {
-              console.error('Error uploading file:', error)
-              alert('There was an error uploading the file.')
-            } finally {
-              this.isUploading = false
+      if (allowedTypes.includes(file.type)) {
+        // Prepare the form data
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+          // Send the file to the Flask backend
+          const uploadResponse = await axios.post(
+            'http://127.0.0.1:5000/upload',
+            formData,
+            {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
             }
-          } else {
-            alert('Please upload a valid PDF file.')
-          }
-        })
+          );
+          this.uploadedFiles.push(file);
+        } catch (error) {
+          console.error('Error uploading file:', error);
+          alert('There was an error uploading the file.');
+        } finally {
+          this.isUploading = false;
+        }
+      } else {
+        alert('Please upload a valid PDF, CSV, or DOCX file.');
       }
-    },
+    });
+  }
+},
 
     async removeFile(fileToRemove) {
       this.isRemovingFile = true
