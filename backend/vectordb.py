@@ -84,6 +84,10 @@ class Vectordb:
                 field_schema="datetime",
             )
             return None
+        base_queries = ['What are the main financial statements?',
+                        'What is the difference between debit and credit?',
+                        'Explain cash flow statement',
+                        'What are the key drivers of business growth?']
         allow_query_sorting()
         recent_queries = self.qdrant_client.scroll(
                 collection_name="QnA",
@@ -91,6 +95,13 @@ class Vectordb:
                 with_vectors=False,
                 order_by=models.OrderBy(key="date", direction="desc"),
                 limit=num_prebuilt_queries
-                )[0]
-        recent_queries = [x.payload['query'] for x in recent_queries]
+            )[0]
+        if recent_queries:
+            recent_queries = [x.payload['query'] for x in recent_queries]
+            if len(recent_queries) < num_prebuilt_queries:
+                num_queries_to_add = num_prebuilt_queries - len(recent_queries)
+                num_queries_to_add = min(num_queries_to_add, len(base_queries))
+                recent_queries.extend(base_queries[:num_queries_to_add])
+        else:
+            recent_queries = base_queries
         return recent_queries
