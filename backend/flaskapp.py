@@ -7,7 +7,7 @@ import re
 import io
 import pymupdf
 import os
-import pandas as pd
+import csv
 from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -275,19 +275,20 @@ def upload_files():
 
         elif file_extension == "csv":
             with io.StringIO(file_content.decode('utf-8')) as csv_file:
-                df = pd.read_csv(csv_file)
-                print("df: ", df)
-                headers = df.columns.values
-                for index, row in df.iterrows(): 
-                    content = ''
-                    for header in headers: 
-                        content += f"{header}: {row[header]}\n"
-                    docs = [Document(page_content=content, metadata={"source": file_name, "row": index})]
-                    
-                    for doc in docs:
-                        doc.metadata["source"] = file_name
-                        doc.page_content = engine.anonymize(enhancedEntityResolutionPipeline(doc.page_content))
-                        lst_docs.append(doc)
+                csv_reader = csv.DictReader(csv_file)
+                for i, row in enumerate(csv_reader):
+                    content = "\n".join(
+                            f"""{k.strip() if k is not None else k}: {v.strip()
+                            if isinstance(v, str) else ','.join(map(str.strip, v))
+                            if isinstance(v, list) else v}"""
+                            for k, v in row.items()
+                    )
+
+                    print("CSV content: ", content)
+
+                    doc = Document(page_content=engine.anonymize(enhancedEntityResolutionPipeline(content)), metadata={"source": file_name, "row": i})
+                    print("CSV document: ", doc)
+                    lst_docs.append(doc)
 
         elif file_extension == "docx":
             with io.BytesIO(file_content) as docx_file:
