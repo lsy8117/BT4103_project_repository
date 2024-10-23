@@ -67,8 +67,7 @@ class Vectordb:
         print(f"Query: {prompt}")
         print(f"Hits:\n{hits}")
         # Get filtered and sorted outputs
-        # final_hits = filter_and_sort_outputs(hits)
-        final_hits = hits
+        final_hits = filter_and_sort_outputs(hits)
         print(f"Final hits:\n{final_hits}")
         if not final_hits:
             print(f"No similar query found in vectordb...")
