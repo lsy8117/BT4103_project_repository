@@ -22,3 +22,4 @@ langchain_core
 langchain_text_splitters
 langchain_ollama
 python-dotenv
+python-docx
