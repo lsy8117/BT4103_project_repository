@@ -115,6 +115,6 @@ For 50.0% strong model calls for bert, threshold = 0.62427
 This means that the threshold should be set to `0.62427` for the BERT router so that approximately 50% of calls are routed to the strong model i.e. using a model field of router-bert-0.62427.
 Update the `.env` file with the following:
 ```sh
-ROUTER_THRESHOLD = '0.6242726147174835'
+ROUTER_THRESHOLD = '0.62427'
 ROUTER_MODEL = 'bert'
 ```
