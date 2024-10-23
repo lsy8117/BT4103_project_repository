@@ -19,6 +19,11 @@ from langchain.chains.combine_documents.base import (
 )
 from datetime import datetime
 
+from litellm import completion
+from routellm.controller import Controller
+from datetime import datetime
+from docx import Document as MSDocument
+
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv())  # get API keys from .env file
 
@@ -28,11 +33,6 @@ openai_api_key = os.environ["OPENAI_API_KEY"]
 router_threshold = os.environ["ROUTER_THRESHOLD"]
 router = os.environ["ROUTER_MODEL"]
 
-from litellm import completion
-from routellm.controller import Controller
-from datetime import datetime
-from docx import Document as MSDocument
-from langchain_community.document_loaders import CSVLoader, Docx2txtLoader
 engine = AnonymizerEngine()
 
 vector_store = InMemoryVectorStore(
