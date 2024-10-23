@@ -174,8 +174,6 @@ def main_pipeline():
 
         # Return response from Vectordb if similar query is found
         if response != None:
-            print(f"Similar query found in vectordb. Similarity score: {score}")
-            print(f"Vectordb output: {response}")
             # Convert the original query to anonymized version and store in conversation history
             query = enhancedEntityResolutionPipeline(query)
             anonymized_query = engine.anonymize(query)
@@ -323,7 +321,6 @@ def handle_feedback():
 def get_recent_queries():
     vectordb = Vectordb(vectordb_api_key)
     recent_queries = vectordb.get_recent_queries(4)
-    print(f"Recent queries: {recent_queries}")
     return jsonify(
       {
       "query_1": recent_queries[0],

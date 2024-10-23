@@ -49,13 +49,9 @@ class Vectordb:
         # Filter outputs by threshold (score > threshold), and sorts the filtered output by date (most recent)
         def filter_and_sort_outputs(hits):
             final_hits = list(filter(lambda x: float(x.score) > self.threshold, hits)) # Filter by threshold
-            print(f"Threshold: {self.threshold}")
             if final_hits:
                 max_score = round(max(hit.score for hit in hits),4)
-                print(f"Max score: {max_score}")
-                print(f"Max score_floor: {math.floor(max_score * 100)}")
                 max_score = math.floor(max_score * 100)/100.0 - 0.05
-                print(f"Max score: {max_score}")
                 final_hits = list(filter(lambda x: float(x.score) > max_score, hits)) # Get queries with highest score (could be more than one)
                 final_hits.sort(key=lambda x: x.payload['date'], reverse=True) # Get most recent highest scoring query
             return final_hits
@@ -68,9 +64,11 @@ class Vectordb:
             ),
             limit=5, # Allow multiple outputs to filter by similarity score and sort by date
         ).points
+        print(f"Query: {prompt}")
         print(f"Hits:\n{hits}")
         # Get filtered and sorted outputs
-        final_hits = filter_and_sort_outputs(hits)
+        # final_hits = filter_and_sort_outputs(hits)
+        final_hits = hits
         print(f"Final hits:\n{final_hits}")
         if not final_hits:
             print(f"No similar query found in vectordb...")
@@ -79,6 +77,7 @@ class Vectordb:
         else:
             output = final_hits[0].payload[output_col]
             score = round(hits[0].score, 2)
+            print(f"Similar query detected! Score: {score}")
         return (output, score)
 
     def get_recent_queries(self, num_prebuilt_queries):
