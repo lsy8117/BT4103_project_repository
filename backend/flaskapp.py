@@ -45,6 +45,7 @@ vector_store = InMemoryVectorStore(
 
 messages = []
 file_id_tracker = {}
+CSV_FILES = {}
 
 safety_settings = [
     {
@@ -94,9 +95,10 @@ def generate_output(query, origin):
         [format_document(doc, DEFAULT_DOCUMENT_PROMPT) for doc in docs]
     )
     print("Anonymized file text: ", anonymized_file_text)
+    print("csv file length: ", len(CSV_FILES))
 
-    prompt = "Context: {context} \n\n Prompt: {input}".format(
-        context=anonymized_file_text, input=anonymized_query
+    prompt = "Uploaded csv files: {csv_files} \n\n Context: {context} \n\n Prompt: {input}".format(
+        csv_files=CSV_FILES, context=anonymized_file_text, input=anonymized_query
     )
 
     messages.append(
@@ -107,7 +109,7 @@ def generate_output(query, origin):
     )
 
     # Use routeLLM if going through normal process or regenerating response for incorrect answer from knowledge base
-    if origin is None or origin == "Vectordb":
+    if (origin is None or origin == "Vectordb") and len(CSV_FILES) == 0:
         client = Controller(
             routers=["bert"],
             strong_model="gemini/gemini-1.5-flash",
@@ -174,7 +176,7 @@ def main_pipeline():
     print("processed query: ", query)
 
     # If no chat history and files uploaded, perform the knowledge base search
-    if not file_id_tracker and not messages:
+    if not file_id_tracker and not messages and len(CSV_FILES) == 0:
         # Retrieve from vectordb
         response, score = vectordb.query(query, collection_name, "answer")
 
@@ -274,6 +276,7 @@ def upload_files():
                 lst_docs = text_splitter.split_documents(lst_docs)
 
         elif file_extension == "csv":
+            csv_list = []
             with io.StringIO(file_content.decode('utf-8')) as csv_file:
                 csv_reader = csv.DictReader(csv_file)
                 for i, row in enumerate(csv_reader):
@@ -287,8 +290,12 @@ def upload_files():
                     print("CSV content: ", content)
 
                     doc = Document(page_content=engine.anonymize(enhancedEntityResolutionPipeline(content)), metadata={"source": file_name, "row": i})
-                    print("CSV document: ", doc)
+                    print("CSV document: ", content)
                     lst_docs.append(doc)
+                    csv_list.append(content)
+            
+            CSV_FILES[file_name] = csv_list
+            print("File name is: ", file_name)
 
         elif file_extension == "docx":
             with io.BytesIO(file_content) as docx_file:
@@ -304,8 +311,13 @@ def upload_files():
             lst_docs = [doc]
             lst_docs = text_splitter.split_documents(lst_docs)
                     
-        lst_ids = vector_store.add_documents(lst_docs)
-        file_id_tracker[file_name].extend(lst_ids)
+        if file_extension == 'csv':
+            # lst_ids = vector_store.add_documents([file_name])
+            # file_id_tracker[file_name].extend(lst_ids)
+            pass
+        else:
+            lst_ids = vector_store.add_documents(lst_docs)
+            file_id_tracker[file_name].extend(lst_ids)
 
         print(f"Processed and anonymized: {file_name}")
     # print(anonymized_file_text)
@@ -330,8 +342,13 @@ def clear_anonymized_text():
         print("File id tracker: ", file_id_tracker)
 
         retriever = vector_store.as_retriever()
-
+        file_extension = file_name.split(".")[-1].lower()
+        if file_extension == "csv":
+            print("deleting csv files...")
+            CSV_FILES.pop(file_name)
         # print(anonymized_file_text)
+        print(CSV_FILES)
+
         return jsonify(
             {"message": f"Anonymized text for {file_name} cleared successfully."}
         )
