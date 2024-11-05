@@ -25,6 +25,7 @@ from datetime import datetime
 from docx import Document as MSDocument
 
 from dotenv import load_dotenv, find_dotenv
+
 load_dotenv(find_dotenv())  # get API keys from .env file
 
 google_api_key = os.environ.get("GOOGLE_API_KEY")
@@ -45,6 +46,7 @@ vector_store = InMemoryVectorStore(
 
 messages = []
 file_id_tracker = {}
+csv_files = {}
 
 safety_settings = [
     {
@@ -66,9 +68,9 @@ safety_settings = [
 ]
 
 model_mapping = {
-            "gemini/gemini-1.5-flash": "Gemini Model",
-            "ollama_chat/seeyssimon/bt4103_gguf_finance_v2": "Finetuned Phi3.5 mini",
-        }
+    "gemini/gemini-1.5-flash": "Gemini Model",
+    "ollama_chat/seeyssimon/bt4103_gguf_finance_v2": "Finetuned Phi3.5 mini",
+}
 
 text_splitter = RecursiveCharacterTextSplitter(chunk_size=100, chunk_overlap=20)
 retriever = vector_store.as_retriever()
@@ -94,9 +96,12 @@ def generate_output(query, origin):
         [format_document(doc, DEFAULT_DOCUMENT_PROMPT) for doc in docs]
     )
     print("Anonymized file text: ", anonymized_file_text)
+    print("csv file length: ", len(csv_files))
 
-    prompt = "Context: {context} \n\n Prompt: {input}".format(
-        context=anonymized_file_text, input=anonymized_query
+    prompt = (
+        "Uploaded csv files: {csv} \n\n Context: {context} \n\n Prompt: {input}".format(
+            csv=csv_files, context=anonymized_file_text, input=anonymized_query
+        )
     )
 
     messages.append(
@@ -107,7 +112,7 @@ def generate_output(query, origin):
     )
 
     # Use routeLLM if going through normal process or regenerating response for incorrect answer from knowledge base
-    if origin is None or origin == "Vectordb":
+    if (origin is None or origin == "Vectordb") and len(csv_files) == 0:
         client = Controller(
             routers=["bert"],
             strong_model="gemini/gemini-1.5-flash",
@@ -174,7 +179,7 @@ def main_pipeline():
     print("processed query: ", query)
 
     # If no chat history and files uploaded, perform the knowledge base search
-    if not file_id_tracker and not messages:
+    if not file_id_tracker and not messages and len(csv_files) == 0:
         # Retrieve from vectordb
         response, score = vectordb.query(query, collection_name, "answer")
 
@@ -274,21 +279,21 @@ def upload_files():
                 lst_docs = text_splitter.split_documents(lst_docs)
 
         elif file_extension == "csv":
-            with io.StringIO(file_content.decode('utf-8')) as csv_file:
+            csv_list = []
+            with io.StringIO(file_content.decode("utf-8")) as csv_file:
                 csv_reader = csv.DictReader(csv_file)
                 for i, row in enumerate(csv_reader):
                     content = "\n".join(
-                            f"""{k.strip() if k is not None else k}: {v.strip()
+                        f"""{k.strip() if k is not None else k}: {v.strip()
                             if isinstance(v, str) else ','.join(map(str.strip, v))
                             if isinstance(v, list) else v}"""
-                            for k, v in row.items()
+                        for k, v in row.items()
                     )
+                    print("CSV document: ", content)
+                    csv_list.append(content)
 
-                    print("CSV content: ", content)
-
-                    doc = Document(page_content=engine.anonymize(enhancedEntityResolutionPipeline(content)), metadata={"source": file_name, "row": i})
-                    print("CSV document: ", doc)
-                    lst_docs.append(doc)
+            csv_files[file_name] = csv_list
+            print("File name is: ", file_name)
 
         elif file_extension == "docx":
             with io.BytesIO(file_content) as docx_file:
@@ -300,12 +305,18 @@ def upload_files():
                 print("full text: ", full_text)
             full_doc = "\n".join(full_text)
             print("full_doc: ", full_doc)
-            doc = Document(page_content=engine.anonymize(enhancedEntityResolutionPipeline(full_doc)) , metadata={"source": file_name})
+            doc = Document(
+                page_content=engine.anonymize(
+                    enhancedEntityResolutionPipeline(full_doc)
+                ),
+                metadata={"source": file_name},
+            )
             lst_docs = [doc]
             lst_docs = text_splitter.split_documents(lst_docs)
-                    
-        lst_ids = vector_store.add_documents(lst_docs)
-        file_id_tracker[file_name].extend(lst_ids)
+
+        if file_extension != "csv":
+            lst_ids = vector_store.add_documents(lst_docs)
+            file_id_tracker[file_name].extend(lst_ids)
 
         print(f"Processed and anonymized: {file_name}")
     # print(anonymized_file_text)
@@ -322,16 +333,20 @@ def clear_anonymized_text():
         print("File id tracker: ", file_id_tracker)
         print("File name present in file id tracker: ", file_name in file_id_tracker)
 
-        # Delete the file content from the in-memory vector db
-        vector_store.delete(file_id_tracker[file_name])
-        print("Vector store: ", vector_store)
+        file_extension = file_name.split(".")[-1].lower()
+        if file_extension == "csv":
+            print("deleting csv files...")
+            csv_files.pop(file_name)
+            print(csv_files)
+        else:
+            # Delete the file content from the in-memory vector db
+            vector_store.delete(file_id_tracker[file_name])
+            print("Vector store: ", vector_store)
+
         # Delete the file info from the file_id_tracker
         del file_id_tracker[file_name]
         print("File id tracker: ", file_id_tracker)
 
-        retriever = vector_store.as_retriever()
-
-        # print(anonymized_file_text)
         return jsonify(
             {"message": f"Anonymized text for {file_name} cleared successfully."}
         )
@@ -343,30 +358,25 @@ def clear_anonymized_text():
 def handle_feedback():
     query = request.json.get("query")
     answer = request.json.get("answer")
-    document = [
-        {
-            "query": query,
-            "answer": answer,
-            "date": datetime.now()
-        }
-    ]
+    document = [{"query": query, "answer": answer, "date": datetime.now()}]
     collection_name = "QnA"
     vectordb = Vectordb(vectordb_api_key)
     print("Answer", answer)
     vectordb.upload_docs(collection_name, document, "query")
     return jsonify({"message": "Uploaded query-answer to vectorDB."})
 
+
 @app.route("/get_recent_queries", methods=["POST"])
 def get_recent_queries():
     vectordb = Vectordb(vectordb_api_key)
     recent_queries = vectordb.get_recent_queries(4)
     return jsonify(
-      {
-      "query_1": recent_queries[0],
-      "query_2" : recent_queries[1],
-      "query_3" : recent_queries[2],
-      "query_4" : recent_queries[3],
-     }
+        {
+            "query_1": recent_queries[0],
+            "query_2": recent_queries[1],
+            "query_3": recent_queries[2],
+            "query_4": recent_queries[3],
+        }
     )
 
 

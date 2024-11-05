@@ -37,8 +37,7 @@
           <div
             v-if="
               (entry.model === 'Vectordb' ||
-                entry.model ===
-                  'Finetuned Phi3.5 mini') &&
+                entry.model === 'Finetuned Phi3.5 mini') &&
               index === chatHistory.length - 1
             "
           >
@@ -68,25 +67,17 @@
 
     <!-- Pre-built Prompts Section -->
     <div class="prebuilt-prompts">
-      <button
-        @click="handlePrebuiltPrompt(this.query_1)"
-      >
-        {{query_1}}
+      <button @click="handlePrebuiltPrompt(this.query_1)">
+        {{ query_1 }}
       </button>
-      <button
-        @click="handlePrebuiltPrompt(this.query_2)"
-      >
-        {{query_2}}
+      <button @click="handlePrebuiltPrompt(this.query_2)">
+        {{ query_2 }}
       </button>
-      <button
-        @click="handlePrebuiltPrompt(this.query_3)"
-      >
-        {{query_3}}
+      <button @click="handlePrebuiltPrompt(this.query_3)">
+        {{ query_3 }}
       </button>
-      <button
-        @click="handlePrebuiltPrompt(this.query_4)"
-      >
-        {{query_4}}
+      <button @click="handlePrebuiltPrompt(this.query_4)">
+        {{ query_4 }}
       </button>
     </div>
 
@@ -131,7 +122,7 @@
             />
             <div v-if="isUploading" class="spinner"></div>
           </div>
-          <template v-if="!isSubmitting">
+          <template v-if="!isSubmitting && !isUploading">
             <button type="submit" class="submit-button">Submit</button>
           </template>
           <template v-else>
@@ -167,9 +158,9 @@ export default {
       isRemovingFile: false,
       isRegenerating: false,
       isClearing: false,
-      query_1 : null,
+      query_1: null,
       query_2: null,
-      query_3 : null,
+      query_3: null,
       query_4: null,
     }
   },
@@ -196,8 +187,7 @@ export default {
     },
 
     async restartConversation() {
-      this.isClearing = true,
-      this.chatHistory = []
+      ;(this.isClearing = true), (this.chatHistory = [])
 
       try {
         const response = await axios.post(
@@ -294,7 +284,7 @@ export default {
 
     handleOutput(anonymizerResponse) {
       // Extract the anonymized query, gemini output, and deanonymized output from the response
-      const originalQuery = anonymizerResponse.data.original_query 
+      const originalQuery = anonymizerResponse.data.original_query
       const anonymizedQuery = anonymizerResponse.data.anonymized_query
       const geminiOutput = anonymizerResponse.data.gemini_output
       const deanonymizedOutput =
@@ -363,48 +353,51 @@ export default {
     },
 
     async handleFileUpload(event) {
-  const newFiles = Array.from(event.target.files).filter(
-    (f) => this.uploadedFiles.map((file) => file.name).indexOf(f.name) === -1
-  );
+      const newFiles = Array.from(event.target.files).filter(
+        (f) =>
+          this.uploadedFiles.map((file) => file.name).indexOf(f.name) === -1
+      )
 
-  if (newFiles.length > 0) {
-    this.isUploading = true;
-    newFiles.forEach(async (file) => {
-      const allowedTypes = [
-        'application/pdf',
-        'text/csv',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      ];
+      if (newFiles.length > 0) {
+        this.isUploading = true
+        const uploadFilePromises = newFiles.map(async (file) => {
+          const allowedTypes = [
+            'application/pdf',
+            'text/csv',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          ]
 
-      if (allowedTypes.includes(file.type)) {
-        // Prepare the form data
-        const formData = new FormData();
-        formData.append('file', file);
+          if (allowedTypes.includes(file.type)) {
+            // Prepare the form data
+            const formData = new FormData()
+            formData.append('file', file)
 
-        try {
-          // Send the file to the Flask backend
-          const uploadResponse = await axios.post(
-            'http://127.0.0.1:5000/upload',
-            formData,
-            {
-              headers: {
-                'Content-Type': 'multipart/form-data',
-              },
+            try {
+              // Send the file to the Flask backend
+              const uploadResponse = await axios.post(
+                'http://127.0.0.1:5000/upload',
+                formData,
+                {
+                  headers: {
+                    'Content-Type': 'multipart/form-data',
+                  },
+                }
+              )
+              this.uploadedFiles.push(file)
+            } catch (error) {
+              console.error('Error uploading file:', error)
+              alert('There was an error uploading the file.')
             }
-          );
-          this.uploadedFiles.push(file);
-        } catch (error) {
-          console.error('Error uploading file:', error);
-          alert('There was an error uploading the file.');
-        } finally {
-          this.isUploading = false;
-        }
-      } else {
-        alert('Please upload a valid PDF, CSV, or DOCX file.');
+          } else {
+            alert('Please upload a valid PDF, CSV, or DOCX file.')
+          }
+        })
+
+        Promise.all(uploadFilePromises).then(() => {
+          this.isUploading = false
+        })
       }
-    });
-  }
-},
+    },
 
     async removeFile(fileToRemove) {
       this.isRemovingFile = true
@@ -431,9 +424,9 @@ export default {
       }
     },
   },
-  
+
   mounted() {
-    this.getRecentConvo();
+    this.getRecentConvo()
   },
 }
 </script>
