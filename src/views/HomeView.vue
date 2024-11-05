@@ -119,6 +119,7 @@
               multiple
               accept="application/pdf,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               class="file-input"
+              :disabled="isUploading"
             />
             <div v-if="isUploading" class="spinner"></div>
           </div>
@@ -490,7 +491,7 @@ export default {
   -webkit-user-select: none;
   vertical-align: top;
   white-space: nowrap;
-  width: 25%;
+  width: 15%;
   z-index: 9;
   border: 0;
   transition: box-shadow 0.2s;
