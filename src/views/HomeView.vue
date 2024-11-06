@@ -123,8 +123,10 @@
             />
             <div v-if="isUploading" class="spinner"></div>
           </div>
-          <template v-if="!isSubmitting && !isUploading">
-            <button type="submit" class="submit-button">Submit</button>
+          <template v-if="!isSubmitting">
+            <button type="submit" class="submit-button" :disabled="isUploading">
+              Submit
+            </button>
           </template>
           <template v-else>
             <div class="spinner"></div>
