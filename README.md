@@ -88,7 +88,6 @@ weak_model = "ollama_chat/seeyssimon/bt4103_gguf_finance" # Weak model
 ```sh
 pandarallel.initialize(progress_bar=True)
 dataset_df = load_dataset(dataset, split="train").to_pandas()
-dataset_df = dataset_df[0:50]  # Remove this line for real use case
 
 controller = Controller(
     routers=routers,
