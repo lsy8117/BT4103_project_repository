@@ -170,7 +170,7 @@ def main_pipeline():
     # Vectordb
     collection_name = "QnA"
     vectordb = Vectordb(vectordb_api_key)
-    vectordb.set_threshold(0.8)
+    vectordb.set_threshold(0.76)
     # vectordb.create_collection(collection_name)
 
     # Query
