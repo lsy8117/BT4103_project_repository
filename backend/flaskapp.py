@@ -289,8 +289,9 @@ def upload_files():
                             if isinstance(v, list) else v}"""
                         for k, v in row.items()
                     )
-                    print("CSV document: ", content)
-                    csv_list.append(content)
+                    anonymized_text=engine.anonymize(enhancedEntityResolutionPipeline(content))
+                    print("CSV document: ", anonymized_text)
+                    csv_list.append(anonymized_text)
 
             csv_files[file_name] = csv_list
             print("File name is: ", file_name)
