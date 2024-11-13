@@ -103,6 +103,10 @@ def generate_output(query, origin):
             csv=csv_files, context=anonymized_file_text, input=anonymized_query
         )
     )
+    if len(csv_files) >= 1:
+        for csv_file_name, csv_data in csv_files.items():
+            anonymized_file_text += f"{csv_file_name}: {csv_data}"
+        print(f"Enumerated csv to text: {anonymized_file_text}")
 
     messages.append(
         {
