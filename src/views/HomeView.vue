@@ -289,6 +289,7 @@ export default {
       // Extract the anonymized query, gemini output, and deanonymized output from the response
       const originalQuery = anonymizerResponse.data.original_query
       const anonymizedQuery = anonymizerResponse.data.anonymized_query
+      const anonymizedContext = anonymizerResponse.data.anonymized_context
       const geminiOutput = anonymizerResponse.data.gemini_output
       const deanonymizedOutput =
         anonymizerResponse.data.deanonymized_output.trimStart()
@@ -296,6 +297,7 @@ export default {
 
       // Log anonymized query and gemini output to the console
       console.log('Anonymized Query:', anonymizedQuery)
+      console.log('Anonymized Context:', anonymizedContext)
       console.log('Gemini Output:', geminiOutput)
       console.log('Deanonymized Output: ', deanonymizedOutput)
       console.log('Model used: ', model)

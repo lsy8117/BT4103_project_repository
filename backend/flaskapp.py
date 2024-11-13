@@ -68,7 +68,7 @@ safety_settings = [
 ]
 
 model_mapping = {
-    "gemini/gemini-1.5-flash": "Gemini Model",
+    "gemini-1.5-flash": "Gemini Model",
     "ollama_chat/seeyssimon/bt4103_gguf_finance_v2": "Finetuned Phi3.5 mini",
 }
 
@@ -133,7 +133,7 @@ def generate_output(query, origin):
             safety_settings=safety_settings,
         )
         # print("LLMresponse: ", response)
-        model_used = "gemini/gemini-1.5-flash"
+        model_used = "gemini-1.5-flash"
 
     response = response.choices[0].message.content
     model_used = model_mapping.get(model_used, model_used)
@@ -157,6 +157,7 @@ def generate_output(query, origin):
         {
             "original_query": query,
             "anonymized_query": anonymized_query,
+            "anonymized_context": anonymized_file_text,
             "gemini_output": response,
             "deanonymized_output": deanonymized_output,
             "model_used": model_used,
